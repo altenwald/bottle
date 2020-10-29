@@ -1,6 +1,9 @@
 %{
-  "exampple": {:hex, :exampple, "0.4.0", "1c0f09ec5627eeb276bad0c80db77188d7c12b059250c56d469bb366253a2643", [:mix], [{:gen_state_machine, "~> 2.1.0", [hex: :gen_state_machine, repo: "hexpm", optional: false]}, {:saxy, "~> 1.2.0", [hex: :saxy, repo: "hexpm", optional: false]}], "hexpm", "24e20b29d8612a8f1b4fdb4a441a0682cb57274db1277d095cdab5b0f0538dc5"},
+  "exampple": {:git, "https://github.com/altenwald/exampple.git", "33b0c81dea11679f5fd3a2bb1a4068a98d370f9a", [branch: "docs"]},
   "gen_state_machine": {:hex, :gen_state_machine, "2.1.0", "a38b0e53fad812d29ec149f0d354da5d1bc0d7222c3711f3a0bd5aa608b42992", [:mix], [], "hexpm", "ae367038808db25cee2f2c4b8d0531522ea587c4995eb6f96ee73410a60fa06b"},
   "saxy": {:hex, :saxy, "1.2.2", "77a76c0542fdf4ed1ef7062c6fc1b415d867427f08ef42772af7eb63d3f69401", [:mix], [], "hexpm", "8694b29e02195ecb9871b24824fb2bb6ba291f895b7677731369b48e1df3a2ef"},
+  "telemetry": {:hex, :telemetry, "0.4.2", "2808c992455e08d6177322f14d3bdb6b625fbcfd233a73505870d8738a2f4599", [:rebar3], [], "hexpm", "2d1419bd9dda6a206d7b5852179511722e2b18812310d304620c7bd92a13fcef"},
+  "telemetry_metrics": {:hex, :telemetry_metrics, "0.6.0", "da9d49ee7e6bb1c259d36ce6539cd45ae14d81247a2b0c90edf55e2b50507f7b", [:mix], [{:telemetry, "~> 0.4", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "5cfe67ad464b243835512aa44321cee91faed6ea868d7fb761d7016e02915c3d"},
+  "telemetry_poller": {:hex, :telemetry_poller, "0.5.1", "21071cc2e536810bac5628b935521ff3e28f0303e770951158c73eaaa01e962a", [:rebar3], [{:telemetry, "~> 0.4", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "4cab72069210bc6e7a080cec9afffad1b33370149ed5d379b81c7c5f0c663fd4"},
   "uuid": {:hex, :uuid, "1.1.8", "e22fc04499de0de3ed1116b770c7737779f226ceefa0badb3592e64d5cfb4eb9", [:mix], [], "hexpm", "c790593b4c3b601f5dc2378baae7efaf5b3d73c4c6456ba85759905be792f2ac"},
 }

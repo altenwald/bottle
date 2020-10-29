@@ -8,18 +8,24 @@ defmodule Bottle.Client do
   @default_process_name to_string(Bottle.Client)
   @default_port 5222
 
-  defp await(%{"process_name" => pname} = data, timeout \\ @default_timeout) do
+  @spec recv(map(), timeout()) :: map()
+  def recv(%{"process_name" => pname} = data, timeout \\ @default_timeout) do
     if (conn = Exampple.Client.get_conn(pname, timeout)) != :timeout do
       if data["store"] do
         Map.put(data, "conns", [conn | data["conns"] || []])
       else
         data
       end
-      |> await(timeout)
+      |> recv(timeout)
     else
       data
     end
   end
+
+  @spec get_conn(map(), integer()) :: nil | Exampple.Router.Conn.t()
+  def get_conn(data, idx \\ 0)
+  def get_conn(%{"conns" => []}, _idx), do: nil
+  def get_conn(%{"conns" => conns}, idx), do: Enum.at(conns, idx)
 
   defp values(data, keys) do
     keys = Enum.uniq(keys)
@@ -29,7 +35,7 @@ defmodule Bottle.Client do
 
   def send_template(%{"process_name" => pname} = data, name, keys \\ []) do
     Exampple.Client.send_template(name, values(data, keys), pname)
-    await(data)
+    recv(data)
   end
 
   def send_stanza(data, %Xmlel{} = stanza) do
@@ -53,7 +59,7 @@ defmodule Bottle.Client do
     |> client_start()
     |> register_templates()
     |> client_connect()
-    |> await()
+    |> recv()
   end
 
   defp client_connect(%{"process_name" => pname} = data) do

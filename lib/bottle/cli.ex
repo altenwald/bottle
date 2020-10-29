@@ -11,6 +11,16 @@ defmodule Bottle.CLI do
     end
   end
 
+  @spec banner(String.t()) :: :ok
+  def banner(msg) do
+    "\n#{IO.ANSI.green()}" <>
+    String.duplicate("*", 40) <>
+    "\n** #{String.pad_trailing(msg, 34)} **\n" <>
+    String.duplicate("*", 40) <>
+    "\n#{IO.ANSI.reset()}"
+    |> IO.puts()
+  end
+
   @spec add_atom(map(), String.t()) :: map()
   def add_atom(data, name) do
     value =
