@@ -1,0 +1,6 @@
+%{
+  "exampple": {:hex, :exampple, "0.4.0", "1c0f09ec5627eeb276bad0c80db77188d7c12b059250c56d469bb366253a2643", [:mix], [{:gen_state_machine, "~> 2.1.0", [hex: :gen_state_machine, repo: "hexpm", optional: false]}, {:saxy, "~> 1.2.0", [hex: :saxy, repo: "hexpm", optional: false]}], "hexpm", "24e20b29d8612a8f1b4fdb4a441a0682cb57274db1277d095cdab5b0f0538dc5"},
+  "gen_state_machine": {:hex, :gen_state_machine, "2.1.0", "a38b0e53fad812d29ec149f0d354da5d1bc0d7222c3711f3a0bd5aa608b42992", [:mix], [], "hexpm", "ae367038808db25cee2f2c4b8d0531522ea587c4995eb6f96ee73410a60fa06b"},
+  "saxy": {:hex, :saxy, "1.2.2", "77a76c0542fdf4ed1ef7062c6fc1b415d867427f08ef42772af7eb63d3f69401", [:mix], [], "hexpm", "8694b29e02195ecb9871b24824fb2bb6ba291f895b7677731369b48e1df3a2ef"},
+  "uuid": {:hex, :uuid, "1.1.8", "e22fc04499de0de3ed1116b770c7737779f226ceefa0badb3592e64d5cfb4eb9", [:mix], [], "hexpm", "c790593b4c3b601f5dc2378baae7efaf5b3d73c4c6456ba85759905be792f2ac"},
+}
