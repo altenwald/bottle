@@ -1,5 +1,5 @@
 %{
-  "exampple": {:git, "https://github.com/altenwald/exampple.git", "33b0c81dea11679f5fd3a2bb1a4068a98d370f9a", [branch: "docs"]},
+  "exampple": {:hex, :exampple, "0.5.0", "389181298d692a2b1ee8667216659a2c642d55b2bab333feb62c6d5be830b875", [:mix], [{:gen_state_machine, "~> 2.1.0", [hex: :gen_state_machine, repo: "hexpm", optional: false]}, {:saxy, "~> 1.2.1", [hex: :saxy, repo: "hexpm", optional: false]}, {:telemetry, "~> 0.4", [hex: :telemetry, repo: "hexpm", optional: false]}, {:telemetry_metrics, "~> 0.4", [hex: :telemetry_metrics, repo: "hexpm", optional: false]}, {:telemetry_poller, "~> 0.4", [hex: :telemetry_poller, repo: "hexpm", optional: false]}], "hexpm", "7961ce5994aba166f67ac2db4f700386e8cdded5de254e5857ec3391d7faa71e"},
   "gen_state_machine": {:hex, :gen_state_machine, "2.1.0", "a38b0e53fad812d29ec149f0d354da5d1bc0d7222c3711f3a0bd5aa608b42992", [:mix], [], "hexpm", "ae367038808db25cee2f2c4b8d0531522ea587c4995eb6f96ee73410a60fa06b"},
   "saxy": {:hex, :saxy, "1.2.2", "77a76c0542fdf4ed1ef7062c6fc1b415d867427f08ef42772af7eb63d3f69401", [:mix], [], "hexpm", "8694b29e02195ecb9871b24824fb2bb6ba291f895b7677731369b48e1df3a2ef"},
   "telemetry": {:hex, :telemetry, "0.4.2", "2808c992455e08d6177322f14d3bdb6b625fbcfd233a73505870d8738a2f4599", [:rebar3], [], "hexpm", "2d1419bd9dda6a206d7b5852179511722e2b18812310d304620c7bd92a13fcef"},

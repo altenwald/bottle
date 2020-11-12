@@ -24,8 +24,8 @@ defmodule Bottle.Client do
 
   @spec get_conn(map(), integer()) :: nil | Exampple.Router.Conn.t()
   def get_conn(data, idx \\ 0)
-  def get_conn(%{"conns" => []}, _idx), do: nil
   def get_conn(%{"conns" => conns}, idx), do: Enum.at(conns, idx)
+  def get_conn(%{}, _idx), do: nil
 
   defp values(data, keys) do
     keys = Enum.uniq(keys)
@@ -35,7 +35,12 @@ defmodule Bottle.Client do
 
   def send_template(%{"process_name" => pname} = data, name, keys \\ []) do
     Exampple.Client.send_template(name, values(data, keys), pname)
-    recv(data)
+    data
+  end
+
+  def check!(%{"process_name" => pname} = data, name, args \\ []) do
+    Exampple.Client.check!(name, [pname | args], pname)
+    data
   end
 
   def send_stanza(data, %Xmlel{} = stanza) do
@@ -58,6 +63,7 @@ defmodule Bottle.Client do
     |> CLI.add_atom("process_name", name)
     |> client_start()
     |> register_templates()
+    |> register_checks()
     |> client_connect()
     |> recv()
   end
@@ -70,6 +76,13 @@ defmodule Bottle.Client do
   defp register_templates(%{"process_name" => pname} = data) do
     for {key, fun} <- Bottle.templates(data["domain"]) do
       Exampple.Client.add_template(pname, key, fun)
+    end
+    data
+  end
+
+  defp register_checks(%{"process_name" => pname} = data) do
+    for {key, fun} <- Bottle.checks(data["domain"]) do
+      Exampple.Client.add_check(pname, key, fun)
     end
     data
   end

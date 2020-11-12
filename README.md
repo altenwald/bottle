@@ -45,6 +45,10 @@ We have defined by default some templates which came from [Exampple][exampple]:
 
 You can see an example of definition of new templates in the [templates.exs](templates.exs) file. This file is compulsory and will be searched by the script in the working path.
 
+## Checks
+
+Other facility Bottle gives you is the possibility to define checks. A check let us define a function which is going to be executed based on a specific situation to verify if the reception of the stanzas for a specific user follows the expected checks.
+
 ## Scenario
 
 The `bottle` script admits one parameter to indicate the name of the _exs_ file to be loaded for the scenario definition. This file have the same format as you can see in our example [normal_clients.exs](normal_clients.exs).

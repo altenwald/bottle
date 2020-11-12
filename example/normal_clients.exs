@@ -1,6 +1,6 @@
 alias Bottle.{CLI, Client}
 alias Exampple.Xmpp.Stanza
-import Exampple.Xml.Xmlel, only: [sigil_X: 2]
+import Exampple.Xml.Xmlel
 
 CLI.banner "Login user1"
 
@@ -15,13 +15,18 @@ user1 =
 
     "to_jid" => "e7264939-6604-4c73-a0ee-26d831ad9ef5@example.com",
     "type" => "chat",
-    "payload" => "<body>Hello!</body>"
+    "payload" => "<body>Hello!</body>",
+    "store" => true
   }
   |> Client.connect()
   |> Client.send_template(:auth, ["user", "pass"])
+  |> Client.check!(:auth)
   |> Client.send_template(:init, ["host"])
+  |> Client.check!(:init)
   |> Client.send_template(:bind, ["resource"])
+  |> Client.check!(:bind)
   |> Client.send_template(:presence)
+  |> Client.check!(:presence)
 
 CLI.banner "Login user2"
 
@@ -37,9 +42,13 @@ user2 =
   }
   |> Client.connect()
   |> Client.send_template(:auth, ["user", "pass"])
+  |> Client.check!(:auth)
   |> Client.send_template(:init, ["host"])
+  |> Client.check!(:init)
   |> Client.send_template(:bind, ["resource"])
+  |> Client.check!(:bind)
   |> Client.send_template(:presence)
+  |> Client.check!(:presence)
 
 CLI.banner "Send message from user1 to user2"
 
@@ -50,13 +59,12 @@ CLI.banner "User2 receives the message"
 
 CLI.banner "User2 sends back a reply"
 
-reply =
+conn =
   user2
   |> Client.recv()
   |> Client.get_conn()
-  |> Stanza.message_resp([
-    ~X[<body>OK!</body>]
-  ])
+
+reply = Stanza.message_resp(conn, [~x[<body>OK!</body>]])
 
 user2
 |> Client.send_stanza(reply)

@@ -23,7 +23,7 @@ defmodule Bottle.MixProject do
 
   defp deps do
     [
-      {:exampple, github: "altenwald/exampple", branch: "docs"},
+      {:exampple, "~> 0.5"},
       {:uuid, "~> 1.1"}
     ]
   end
