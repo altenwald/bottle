@@ -38,6 +38,11 @@ defmodule Bottle.Client do
     data
   end
 
+  def upgrade_tls(%{"process_name" => pname} = data) do
+    Exampple.Client.upgrade_tls(pname)
+    data
+  end
+
   def check!(%{"process_name" => pname} = data, name, args \\ []) do
     Exampple.Client.check!(name, [pname | args], pname)
     data

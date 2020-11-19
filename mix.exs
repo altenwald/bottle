@@ -23,8 +23,7 @@ defmodule Bottle.MixProject do
 
   defp deps do
     [
-      {:exampple, "~> 0.5"},
-      {:uuid, "~> 1.1"}
+      {:exampple, "~> 0.7"}
     ]
   end
 end
