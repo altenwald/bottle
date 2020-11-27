@@ -45,6 +45,30 @@ defmodule Bottle.CLI do
     Map.put(data, name, value)
   end
 
+  @spec add_boolean(map(), String.t()) :: map()
+  def add_boolean(data, name) do
+    value =
+      ifnil data[name] do
+        name
+        |> build_prompt()
+        |> ask_boolean()
+      end
+
+    Map.put(data, name, value)
+  end
+
+  @spec add_boolean(map(), String.t(), String.t()) :: map()
+  def add_boolean(data, name, default) do
+    value =
+      ifnil data[name] do
+        name
+        |> build_prompt(if default, do: "Yn", else: "yN")
+        |> ask_boolean(default)
+      end
+
+    Map.put(data, name, value)
+  end
+
   @spec add_string(map(), String.t()) :: map()
   def add_string(data, name) do
     value =
@@ -81,9 +105,16 @@ defmodule Bottle.CLI do
   end
 
   @spec ask_atom(String.t(), Atom.t()) :: Atom.t()
-  def ask_atom(prompt, default \\ "") do
-    ask_string(prompt, default)
+  def ask_atom(prompt, default \\ nil) do
+    ask_string(prompt, to_string(default))
     |> String.to_atom()
+  end
+
+  @spec ask_boolean(String.t(), boolean()) :: boolean()
+  def ask_boolean(prompt, default \\ true) do
+    default = to_string(default)
+    true_values = ["true", "t", "yes", "y", "on", "1"]
+    String.downcase(ask_string(prompt, default)) in true_values
   end
 
   @spec build_prompt(String.t()) :: String.t()

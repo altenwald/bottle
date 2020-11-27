@@ -1,9 +1,11 @@
 import Bottle
 import Bottle.Client
+
+alias Bottle.CLI
 alias Exampple.Client
 
 IEx.configure([
-  default_prompt: "#{IO.ANSI.green()}bottle#{IO.ANSI.reset()}(#{IO.ANSI.blue()}%counter#{IO.ANSI.reset()})> "
+  default_prompt: "#{IO.ANSI.green()}bottle#{IO.ANSI.reset()}(#{IO.ANSI.blue()}%counter#{IO.ANSI.reset()})>"
 ])
 
 IO.puts(

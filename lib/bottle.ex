@@ -6,11 +6,29 @@ defmodule Bottle do
   The facilities Bottle gives to create scenarios
   """
 
+  defmacro __using__(:checks) do
+    quote do
+      alias Exampple.Client
+      alias Exampple.Router.Conn
+      alias Exampple.Xml.Xmlel
+    end
+  end
+
+  defmacro __using__(:scenario) do
+    quote do
+      import Bottle.Client
+      import Exampple.Xml.Xmlel
+
+      alias Bottle.CLI
+      alias Exampple.Xmpp.Stanza
+    end
+  end
+
   defp eval(file, bindings) do
     if File.exists?(file) do
       {output, _out_bindings} =
         File.read!(file)
-        |> Code.eval_string(bindings)
+        |> Code.eval_string(bindings, file: file)
 
       output
     else

@@ -1,81 +1,72 @@
-alias Bottle.{CLI, Client}
-alias Exampple.Xmpp.Stanza
-import Exampple.Xml.Xmlel
+use Bottle, :scenario
 
 CLI.banner "Login user1"
 
 user1 =
   %{
+    "user" => "7b9b68a9-dd87-44f9-94b1-869118156c73",
+    "pass" => "7b9b68a9-dd87-44f9-94b1-869118156c73",
     "domain" => "example.com",
     "host" => "localhost",
-    "pass" => "7b9b68a9-dd87-44f9-94b1-869118156c73",
-    "resource" => "hectic",
-    "user" => "7b9b68a9-dd87-44f9-94b1-869118156c73",
-    "process_name" => :user1,
 
-    "to_jid" => "e7264939-6604-4c73-a0ee-26d831ad9ef5@example.com",
-    "type" => "chat",
-    "payload" => "<body>Hello!</body>",
+    "tls" => false,
+    "stream_mgmt" => "enable",
+    "resource" => "hectic",
+    "process_name" => :user1,
     "store" => true
   }
-  |> Client.connect()
-  |> Client.send_template(:auth, ["user", "pass"])
-  |> Client.check!(:auth)
-  |> Client.send_template(:init, ["host"])
-  |> Client.check!(:init)
-  |> Client.send_template(:bind, ["resource"])
-  |> Client.check!(:bind)
-  |> Client.send_template(:presence)
-  |> Client.check!(:presence)
+  |> connect()
+  |> login()
 
 CLI.banner "Login user2"
 
 user2 =
   %{
+    "user" => "e7264939-6604-4c73-a0ee-26d831ad9ef5",
+    "pass" => "e7264939-6604-4c73-a0ee-26d831ad9ef5",
     "domain" => "example.com",
     "host" => "localhost",
-    "pass" => "e7264939-6604-4c73-a0ee-26d831ad9ef5",
+
+    "tls" => false,
+    "stream_mgmt" => "enable",
     "resource" => "hectic",
-    "user" => "e7264939-6604-4c73-a0ee-26d831ad9ef5",
     "process_name" => :user2,
     "store" => true
   }
-  |> Client.connect()
-  |> Client.send_template(:auth, ["user", "pass"])
-  |> Client.check!(:auth)
-  |> Client.send_template(:init, ["host"])
-  |> Client.check!(:init)
-  |> Client.send_template(:bind, ["resource"])
-  |> Client.check!(:bind)
-  |> Client.send_template(:presence)
-  |> Client.check!(:presence)
+  |> connect()
+  |> login()
 
 CLI.banner "Send message from user1 to user2"
 
 user1
-|> Client.send_template(:message, ["to_jid", "type", "payload"])
+|> send_template(:message, [
+  to_jid: user2["user"] <> "@" <> user2["domain"],
+  type: "chat",
+  payload: "<body>Hello!</body>"
+])
+|> check!(:stream_mgmt_r)
+|> send_template(:stream_mgmt_a, [h: "1"])
 
 CLI.banner "User2 receives the message"
 
+user2 =
+  user2
+  |> check!(:message, ["chat"])
+
 CLI.banner "User2 sends back a reply"
 
-conn =
-  user2
-  |> Client.recv()
-  |> Client.get_conn()
-
-reply = Stanza.message_resp(conn, [~x[<body>OK!</body>]])
+reply = Stanza.message_resp(user2["conn"], [~x[<body>OK!</body>]])
 
 user2
-|> Client.send_stanza(reply)
+|> send_stanza(reply)
 
 user1
-|> Client.recv()
+|> check!(:message)
 
 CLI.banner "Teardown!"
 
 user1
-|> Client.disconnect()
+|> disconnect()
 
 user2
-|> Client.disconnect()
+|> disconnect()

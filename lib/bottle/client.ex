@@ -7,6 +7,7 @@ defmodule Bottle.Client do
   @default_timeout 500
   @default_process_name to_string(Bottle.Client)
   @default_port 5222
+  @default_tls false
 
   @spec recv(map(), timeout()) :: map()
   def recv(%{"process_name" => pname} = data, timeout \\ @default_timeout) do
@@ -28,9 +29,13 @@ defmodule Bottle.Client do
   def get_conn(%{}, _idx), do: nil
 
   defp values(data, keys) do
-    keys = Enum.uniq(keys)
-    keys = keys -- (keys -- Map.keys(data))
-    for key <- keys, do: data[key]
+    for key <- keys do
+      case key do
+        {:key, real_key} -> data[real_key]
+        {real_key, value} when is_atom(real_key) -> value
+        _ when is_binary(key) -> data[key]
+      end
+    end
   end
 
   def send_template(%{"process_name" => pname} = data, name, keys \\ []) do
@@ -43,17 +48,21 @@ defmodule Bottle.Client do
     data
   end
 
-  def check!(%{"process_name" => pname} = data, name, args \\ []) do
-    Exampple.Client.check!(name, [pname | args], pname)
-    data
+  def check!(%{"process_name" => pname} = data, name, keys \\ []) do
+    args = values(data, keys)
+    result = Exampple.Client.check!(name, [pname | args], pname)
+    Map.merge(data, result)
+  rescue
+    error -> raise "check!<#{inspect(pname)}> #{inspect(name)}#{inspect(keys)} ==> #{inspect(error)}"
   end
 
   def send_stanza(data, %Xmlel{} = stanza) do
     send_stanza(data, to_string(stanza))
   end
 
-  def send_stanza(%{"process_name" => pname}, stanza) do
+  def send_stanza(%{"process_name" => pname} = data, stanza) do
     Exampple.Client.send(stanza, pname)
+    data
   end
 
   def disconnect(data) do
@@ -103,5 +112,47 @@ defmodule Bottle.Client do
 
   def is_connected?(%{"process_name" => pname}) do
     Exampple.Client.is_connected?(pname)
+  end
+
+  def login(data) do
+    data
+    |> CLI.add_boolean("tls", @default_tls)
+    |> CLI.add_string("stream_mgmt", "enable")
+    |> case do
+      %{"tls" => true} = data ->
+        data
+        |> send_template(:starttls)
+        |> check!(:starttls)
+        |> upgrade_tls()
+        |> check!(:features)
+
+      data -> data
+    end
+    |> send_template(:auth, ["user", "pass"])
+    |> check!(:auth)
+    |> send_template(:init, ["host"])
+    |> check!(:init)
+    |> case do
+      %{"stream_mgmt" => "resume"} = data ->
+        data
+        |> CLI.add_string("stream_id")
+        |> CLI.add_string("h", "1")
+        |> send_template(:stream_mgmt_resume, ["stream_id", "h"])
+        |> check!(:stream_mgmt_resumed)
+
+      %{"stream_mgmt" => "enable"} = data ->
+        data
+        |> send_template(:bind, ["resource"])
+        |> check!(:bind)
+        |> send_template(:stream_mgmt_enable)
+        |> check!(:stream_mgmt_enabled)
+
+      data ->
+        data
+        |> send_template(:bind, ["resource"])
+        |> check!(:bind)
+    end
+    |> send_template(:presence)
+    |> check!(:presence)
   end
 end
