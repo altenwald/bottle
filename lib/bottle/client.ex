@@ -152,7 +152,14 @@ defmodule Bottle.Client do
         |> send_template(:bind, ["resource"])
         |> check!(:bind)
     end
-    |> send_template(:presence)
-    |> check!(:presence)
+    |> case do
+      %{"initial_presence" => false} = data ->
+        data
+
+      data ->
+        data
+        |> send_template(:presence)
+        |> check!(:presence)
+    end
   end
 end
