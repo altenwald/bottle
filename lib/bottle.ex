@@ -46,11 +46,15 @@ defmodule Bottle do
 
   def main(args) do
     opts = [
-      switches: ["working-dir": :string, help: :boolean],
-      aliases: [w: :"working-dir", h: :help]
+      switches: ["working-dir": :string, help: :boolean, "config-file": :string],
+      aliases: [w: :"working-dir", h: :help, c: :"config-file"]
     ]
     case OptionParser.parse(args, opts) do
       {switches, [file], []} ->
+        if config_file = switches[:"config-file"] do
+          Config.Reader.read!(config_file)
+          |> Application.put_all_env()
+        end
         if working_dir = switches[:"working-dir"] do
           File.cd!(working_dir)
         end
@@ -70,9 +74,10 @@ defmodule Bottle do
     IO.puts """
     Bottle v#{Application.spec(:bottle)[:vsn]}
 
-    Syntax: bottle [-w <directory>] [-h] file.exs
+    Syntax: bottle [-c <file>] [-w <directory>] [-h] file.exs
 
     Parameters:
+      -c | --config-file              Sets the config file. Defaults to configs/config.exs
       -w | --working-dir <directory>  Changes the working directory.
       -h | --help                     Shows this message.
       file.exs                        File to be processed.
