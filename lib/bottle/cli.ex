@@ -13,10 +13,23 @@ defmodule Bottle.CLI do
 
   @spec banner(String.t()) :: :ok
   def banner(msg) do
+    {lines, max_line_len} =
+      msg
+      |> String.split(~r/[\r\n]+/)
+      |> Enum.reduce({[], 40}, fn s, {lines, max_line_len} ->
+        {[s | lines], max(max_line_len, String.length(s))}
+      end)
+
+    lines_str =
+      lines
+      |> Enum.reverse()
+      |> Enum.map(&"\n** #{String.pad_trailing(&1, max_line_len)} **")
+      |> Enum.join()
+
     "\n#{IO.ANSI.green()}" <>
-    String.duplicate("*", 40) <>
-    "\n** #{String.pad_trailing(msg, 34)} **\n" <>
-    String.duplicate("*", 40) <>
+    String.duplicate("*", max_line_len+6) <>
+    lines_str <> "\n" <>
+    String.duplicate("*", max_line_len+6) <>
     "\n#{IO.ANSI.reset()}"
     |> IO.puts()
   end
