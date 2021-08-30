@@ -24,6 +24,16 @@ defmodule Bottle do
     end
   end
 
+  defmacro __using__(:bot) do
+    quote do
+      import Bottle.{Bot, Client}
+      import Exampple.Xml.Xmlel
+
+      alias Bottle.CLI
+      alias Exampple.Xmpp.Stanza
+    end
+  end
+
   defp eval(file, bindings) do
     if File.exists?(file) do
       {output, _out_bindings} =
