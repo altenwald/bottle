@@ -23,7 +23,8 @@ defmodule Bottle.MixProject do
 
   defp deps do
     [
-      {:exampple, "~> 0.7"}
+      {:exampple, "~> 0.9"},
+      {:gen_state_machine, "~> 3.0"}
     ]
   end
 end

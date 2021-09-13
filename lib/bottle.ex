@@ -9,6 +9,7 @@ defmodule Bottle do
   defmacro __using__(:checks) do
     quote do
       alias Exampple.Client
+      require Exampple.Client
       alias Exampple.Router.Conn
       alias Exampple.Xml.Xmlel
     end

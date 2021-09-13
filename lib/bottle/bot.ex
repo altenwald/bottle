@@ -29,7 +29,7 @@ defmodule Bottle.Bot do
       to_string(name)
       |> Macro.camelize()
 
-    module_name = Module.concat(__MODULE__, camelize_name)
+    module_name = Module.concat([__MODULE__, Agent, camelize_name])
     quote do
       defmodule unquote(module_name) do
 
@@ -134,9 +134,9 @@ defmodule Bottle.Bot do
     data
   end
 
-  defmacro wait(seconds) when is_integer(seconds) do
+  defmacro wait(milliseconds) when is_integer(milliseconds) do
     quote do
-      wait_fun = {Bottle.Bot, :wait, [unquote(seconds) * 1_000]}
+      wait_fun = {Bottle.Bot, :wait, [unquote(milliseconds)]}
 
       if @run_block do
         if @step_block do

@@ -3,6 +3,10 @@
 # returned as the result of the evaluation of this file.
 use Bottle, :checks
 
+require Logger
+
+alias Exampple.Xmpp.Jid
+
 [
   features: fn pname ->
     %Conn{stanza_type: "stream:features", stanza: stanza} = conn = Client.get_conn(pname)
@@ -34,7 +38,44 @@ use Bottle, :checks
     %Conn{stanza_type: "a", stanza: %Xmlel{attrs: %{"h" => h}}} = conn = Client.get_conn(pname)
     %{"conn" => conn, "h" => h}
   end,
-  message: fn pname, type ->
-    %Conn{stanza_type: "message", type: ^type} = Client.get_conn(pname)
+  message: fn pname, conn, type ->
+    %Conn{stanza_type: "message", type: ^type} = conn
+  end,
+  chat: fn pname, conn, options ->
+    from_jid =
+      options[:from]
+      |> Bottle.Bot.Server.get_jid()
+      |> to_string()
+
+    type = options[:type] || "chat"
+    Logger.info("checking (#{pname}) #{inspect(from_jid)} #{inspect(type)} ==> #{inspect(conn.from_jid.original)} #{inspect(conn.stanza_type)} #{inspect(conn.type)}")
+    %Conn{from_jid: %Jid{original: ^from_jid}, stanza_type: "message", type: ^type} = conn
+  end,
+  received: fn _pname, conn, options ->
+    from_jid =
+      options[:from]
+      |> Bottle.Bot.Server.get_jid()
+      |> to_string()
+
+    type = options[:type] || "chat"
+    %Conn{from_jid: %Jid{original: ^from_jid}, stanza_type: "message", type: ^type} = conn
+  end,
+  displayed: fn _pname, conn, options ->
+    from_jid =
+      options[:from]
+      |> Bottle.Bot.Server.get_jid()
+      |> to_string()
+
+    type = options[:type] || "chat"
+    %Conn{from_jid: %Jid{original: ^from_jid}, stanza_type: "message", type: ^type} = conn
+  end,
+  receipt: fn _pname, conn, options ->
+    from_jid =
+      options[:from]
+      |> Bottle.Bot.Server.get_jid()
+      |> Jid.to_bare()
+
+    type = options[:type] || "chat"
+    %Conn{from_jid: %Jid{original: ^from_jid}, stanza_type: "message", type: ^type} = conn
   end
 ]

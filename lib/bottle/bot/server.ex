@@ -3,15 +3,24 @@ defmodule Bottle.Bot.Server do
   The server is the process running which is using the behaviour defined
   by `Bottle.Bot`.
   """
-  use GenServer
+  use GenStateMachine
 
   require Logger
+
+  alias Bottle.Bot.Runner
+  alias Exampple.Xmpp.Jid
+
+  defstruct [
+    module_name: nil,
+    data: %{},
+    runner: nil,
+    check_args: nil,
+    check_optional: false
+  ]
 
   @registry Bottle.Bot.Server.Registry
 
   @tick_time 250
-  @max_tick_timeout 2_000
-  @min_tick_timeout 150
 
   defp via(name) do
     {:via, Registry, {@registry, name}}
@@ -19,77 +28,87 @@ defmodule Bottle.Bot.Server do
 
   def start_link(name, module_name) when is_atom(module_name) do
     Registry.start_link(keys: :unique, name: @registry)
-    GenServer.start_link(__MODULE__, [name, module_name], name: via(name))
+    GenStateMachine.start_link(__MODULE__, [name, module_name], name: via(name))
   end
 
   def stop(name) do
-    GenServer.stop(via(name))
+    GenStateMachine.stop(via(name))
   end
 
-  @impl GenServer
+  def get_jid(name) do
+    GenStateMachine.call(via(name), :get_jid)
+  end
+
+  @impl GenStateMachine
   @doc false
   def init([name, module_name]) do
     Logger.metadata([name: name])
-    Process.send_after(self(), :tick, @tick_time)
     Logger.notice("connecting #{name}")
     data =
       module_name.data()
       |> Bottle.Client.connect()
 
-    {:ok, {module_name, data, module_name.actions()}}
+    {:ok, runner} = Runner.start_link(module_name)
+    actions = [{{:timeout, :tick}, @tick_time, :tick}]
+    state = %__MODULE__{
+      module_name: module_name,
+      data: data,
+      runner: runner
+    }
+
+    {:ok, :running, state, actions}
   end
 
-  @impl GenServer
-  def handle_info(:tick, {module_name, _data, []}) do
-    {:stop, :normal, module_name}
-  end
-  def handle_info(:tick, {module_name, data, [statement|statements]}) do
-    case run_bot(statement, data) do
-      {new_statement, data, timeout} ->
-        Process.send_after(self(), :tick, timeout)
-        {:noreply, {module_name, data, [new_statement|statements]}}
+  @impl GenStateMachine
+  def handle_event({:timeout, :tick}, :tick, :running, statedata) do
+    case Runner.get_statement(statedata.runner) do
+      :eos ->
+        {:stop, :normal, statedata}
 
-      {data, timeout} ->
-        Process.send_after(self(), :tick, timeout)
-        {:noreply, {module_name, data, statements}}
+      {:apply, name, i, optional, {__MODULE__, :checking, args}, _keywords, tick_time} ->
+        Logger.info "(#{name}) i=#{i} t=#{tick_time}ms checking #{inspect(args)}"
+        statedata = %__MODULE__{statedata|check_args: args, check_optional: optional}
+        actions = [{:state_timeout, tick_time, :tick}]
+        {:next_state, :checking, statedata, actions}
+
+      {:apply, name, i, optional, {m, f, a}, _keywords, tick_time} ->
+        data = apply_action(name, i, optional, {m, f, a}, statedata.data)
+        statedata = %__MODULE__{statedata|data: data}
+        actions = [{{:timeout, :tick}, tick_time, :tick}]
+        {:keep_state, statedata, actions}
     end
   end
 
-  defp run_bot({options, steps}, data) when is_list(options) and is_list(steps) do
-    case {options[:for] || {:times, 1}, options[:as] || :ordered} do
-      {{:times, 0}, _} ->
-        {data, 0}
-
-      {{:times, n}, :ordered} ->
-        data = Enum.reduce(1..n, data, &run_steps(&2, &1, steps))
-        {data, @tick_time}
-
-      {{:times, n}, :random} ->
-        steps = Enum.shuffle(steps)
-        data = Enum.reduce(1..n, data, &run_steps(&2, &1, steps))
-        {data, @tick_time}
-
-      {{:times, n}, :chaotic} ->
-        statement = {[times: n - 1, as: :chaotic], steps}
-        data = run_steps(data, n, [Enum.random(steps)])
-        timeout = Enum.random(@min_tick_timeout..@max_tick_timeout)
-        {statement, data, timeout}
+  def handle_event(:state_timeout, :tick, :checking, statedata) do
+    if statedata.check_optional do
+      actions = [{{:timeout, :tick},@tick_time, :tick}]
+      {:next_state, :running, statedata, actions}
+    else
+      {:stop, :check!, statedata}
     end
   end
 
-  defp run_steps(data, _i, []), do: data
-
-  defp run_steps(data, i, [{name, options, actions}|steps]) do
-    Logger.notice("running step #{name} (iteration #{i})")
+  def handle_event(:info, {:conn, pname, conn}, :checking, %__MODULE__{data: %{"process_name" => pname}, check_args: [name, keywords]} = statedata) do
     try do
-      data
-      |> run_actions(options[:optional] || false, actions)
-      |> run_steps(i, steps)
-    catch
-      {:checking, action_name, error} ->
-        Logger.warn("failed step #{name} in action #{action_name} (optional): #{inspect(error)}")
-        data
+      result = Exampple.Client.check!(name, [pname, conn, keywords], pname)
+      statedata = %__MODULE__{statedata|data: Map.merge(statedata.data, result)}
+      actions = [{{:timeout, :tick}, @tick_time, :tick}]
+      {:next_state, :running, statedata, actions}
+    rescue
+      _ ->
+        {:keep_state_and_data, [:postpone]}
     end
+  end
+
+  def handle_event(:info, {:conn, pname, _conn}, :running, %_{data: %{"process_name" => pname}}) do
+    # Logger.info("(#{pname}) conn not expected: #{IO.ANSI.red()}#{to_string(conn.stanza)}#{IO.ANSI.reset()}")
+    {:keep_state_and_data, [:postpone]}
+  end
+
+  def handle_event({:call, from}, :get_jid, _state, %_{data: data}) do
+    jid = Jid.new(data["user"], data["domain"], data["resource"])
+    actions = [{:reply, from, jid}]
+    {:keep_state_and_data, actions}
   end
 
   defp wait_for(true, name, timeout) when timeout <= 0 do
@@ -105,38 +124,17 @@ defmodule Bottle.Bot.Server do
     end
   end
 
-  defp run_actions(data, _optional, []), do: data
-
-  defp run_actions(data, optional, [{__MODULE__, :wait_for, [name, timeout]}|actions]) when is_atom(name) and is_integer(timeout) and timeout > 0 do
+  defp apply_action(_sname, _i, optional, {__MODULE__, :wait_for, [name, timeout]}, data) when is_atom(name) and is_integer(timeout) and timeout > 0 do
     wait_for(optional, name, timeout)
-    run_actions(data, optional, actions)
-  end
-
-  defp run_actions(data, optional, [{__MODULE__, :sending, [name, keywords]}|actions]) when is_atom(name) and is_list(keywords) do
-    values = Keyword.values(keywords)
     data
-    |> Bottle.Client.send_template(name, values)
-    |> run_actions(optional, actions)
   end
 
-  defp run_actions(data, false, [{__MODULE__, :checking, [name]}|actions]) when is_atom(name) do
+  defp apply_action(_sname, _i, _optional, {__MODULE__, :sending, [name, keywords]}, %{"process_name" => pname} = data) when is_atom(name) and is_list(keywords) do
+    Exampple.Client.send_template(name, [keywords], pname)
     data
-    |> Bottle.Client.check!(name)
-    |> run_actions(false, actions)
-  end
-  defp run_actions(data, true, [{__MODULE__, :checking, [name]}|actions]) when is_atom(name) do
-    try do
-      data
-      |> Bottle.Client.check!(name)
-      |> run_actions(true, actions)
-    rescue
-      e in RuntimeError ->
-        throw({:checking, name, e})
-    end
   end
 
-  defp run_actions(data, optional, [{module, function, args}|actions]) when module != __MODULE__ do
+  defp apply_action(_sname, _i, _optional, {module, function, args}, data) when module != __MODULE__ do
     apply(module, function, [data|args])
-    |> run_actions(optional, actions)
   end
 end

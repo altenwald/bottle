@@ -119,7 +119,7 @@ end
 #   set domain: "shakespeare.im"
 #   set host: "localhost"
 
-#   set tls: false
+#   set tls: "no"
 #   set stream_mgmt: "disable"
 #   set resource: "party"
 
