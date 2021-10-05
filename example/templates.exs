@@ -25,12 +25,33 @@ alias Exampple.Xml.Xmlel
       "type" => "chat"
     }, [
       body,
-      ~x[<markable xmlns='urn:xmpp:chat-markers:0'/>]
+      ~x[<markable xmlns='urn:xmpp:chat-markers:0'/>],
+      ~x[<origin-id xmlns='urn:xmpp:sid:0' id='#{options[:origin_id]}'/>]
     ])
     |> to_string()
   end,
   message: fn to_jid, type, payload ->
     "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='#{type}'>#{payload}</message>"
+  end,
+  received: fn options ->
+    to_jid =
+      options[:to]
+      |> Bottle.Bot.Server.get_jid()
+      |> Exampple.Xmpp.Jid.to_bare()
+
+    "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='chat'>" <>
+      "<received xmlns='urn:xmpp:chat-markers:0' id='#{options[:origin_id]}'/>" <>
+      "</message>"
+  end,
+  displayed: fn options ->
+    to_jid =
+      options[:to]
+      |> Bottle.Bot.Server.get_jid()
+      |> Exampple.Xmpp.Jid.to_bare()
+
+    "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='chat'>" <>
+      "<displayed xmlns='urn:xmpp:chat-markers:0' id='#{options[:origin_id]}'/>" <>
+      "</message>"
   end,
   stream_mgmt_enable: fn ->
     "<enable xmlns='urn:xmpp:sm:3' resume='true' max='60'/>"

@@ -11,6 +11,7 @@ defmodule Bottle.Bot.Server do
   alias Exampple.Xmpp.Jid
 
   defstruct [
+    name: nil,
     module_name: nil,
     data: %{},
     runner: nil,
@@ -51,6 +52,7 @@ defmodule Bottle.Bot.Server do
     {:ok, runner} = Runner.start_link(module_name)
     actions = [{{:timeout, :tick}, @tick_time, :tick}]
     state = %__MODULE__{
+      name: name,
       module_name: module_name,
       data: data,
       runner: runner
@@ -63,15 +65,18 @@ defmodule Bottle.Bot.Server do
   def handle_event({:timeout, :tick}, :tick, :running, statedata) do
     case Runner.get_statement(statedata.runner) do
       :eos ->
+        Logger.info "(#{statedata.name}) stopping"
         {:stop, :normal, statedata}
 
-      {:apply, name, i, optional, {__MODULE__, :checking, args}, _keywords, tick_time} ->
-        Logger.info "(#{name}) i=#{i} t=#{tick_time}ms checking #{inspect(args)}"
+      {:apply, name, i, optional, {__MODULE__, :checking, [_name, keywords] = args}, _keywords, tick_time} ->
+        tick_time = keywords[:timeout] || tick_time
+        Logger.info "(#{statedata.name}) step=#{name} i=#{i} t=#{tick_time}ms checking #{inspect(args)}"
         statedata = %__MODULE__{statedata|check_args: args, check_optional: optional}
         actions = [{:state_timeout, tick_time, :tick}]
         {:next_state, :checking, statedata, actions}
 
       {:apply, name, i, optional, {m, f, a}, _keywords, tick_time} ->
+        Logger.info "(#{statedata.name}) step=#{name} i=#{i} t=#{tick_time}ms #{m}.#{f} #{inspect(a)}"
         data = apply_action(name, i, optional, {m, f, a}, statedata.data)
         statedata = %__MODULE__{statedata|data: data}
         actions = [{{:timeout, :tick}, tick_time, :tick}]
@@ -81,10 +86,12 @@ defmodule Bottle.Bot.Server do
 
   def handle_event(:state_timeout, :tick, :checking, statedata) do
     if statedata.check_optional do
-      actions = [{{:timeout, :tick},@tick_time, :tick}]
+      :ok = Runner.skip(statedata.runner)
+      actions = [{:next_event, {:timeout, :tick}, :tick}]
       {:next_state, :running, statedata, actions}
     else
-      {:stop, :check!, statedata}
+      Logger.error("(#{statedata.data["process_name"]}) checking: #{inspect(statedata.check_args)}")
+      {:stop, {:check!, statedata.check_args}, statedata}
     end
   end
 
@@ -93,15 +100,18 @@ defmodule Bottle.Bot.Server do
       result = Exampple.Client.check!(name, [pname, conn, keywords], pname)
       statedata = %__MODULE__{statedata|data: Map.merge(statedata.data, result)}
       actions = [{{:timeout, :tick}, @tick_time, :tick}]
+      Logger.debug("(#{pname}) configuring tick #{@tick_time}ms")
       {:next_state, :running, statedata, actions}
     rescue
-      _ ->
+      error ->
+        Logger.debug("(#{pname}) conn not expected (postponed): #{IO.ANSI.red()}#{to_string(conn.stanza)}#{IO.ANSI.reset()}")
+        Logger.debug("(#{pname}) error: #{inspect(error)}")
         {:keep_state_and_data, [:postpone]}
     end
   end
 
-  def handle_event(:info, {:conn, pname, _conn}, :running, %_{data: %{"process_name" => pname}}) do
-    # Logger.info("(#{pname}) conn not expected: #{IO.ANSI.red()}#{to_string(conn.stanza)}#{IO.ANSI.reset()}")
+  def handle_event(:info, {:conn, pname, conn}, :running, %_{data: %{"process_name" => pname}}) do
+    Logger.debug("(#{pname}) conn not expected (postponed): #{IO.ANSI.red()}#{to_string(conn.stanza)}#{IO.ANSI.reset()}")
     {:keep_state_and_data, [:postpone]}
   end
 
@@ -130,7 +140,8 @@ defmodule Bottle.Bot.Server do
   end
 
   defp apply_action(_sname, _i, _optional, {__MODULE__, :sending, [name, keywords]}, %{"process_name" => pname} = data) when is_atom(name) and is_list(keywords) do
-    Exampple.Client.send_template(name, [keywords], pname)
+    origin_id = UUID.uuid4()
+    Exampple.Client.send_template(name, [[{:origin_id, origin_id}|keywords]], pname)
     data
   end
 

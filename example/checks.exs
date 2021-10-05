@@ -48,7 +48,7 @@ alias Exampple.Xmpp.Jid
       |> to_string()
 
     type = options[:type] || "chat"
-    Logger.info("checking (#{pname}) #{inspect(from_jid)} #{inspect(type)} ==> #{inspect(conn.from_jid.original)} #{inspect(conn.stanza_type)} #{inspect(conn.type)}")
+    Logger.info("(#{pname}) checking #{inspect(from_jid)} #{inspect(type)} ==> #{inspect(conn.from_jid.original)} #{inspect(conn.stanza_type)} #{inspect(conn.type)}")
     %Conn{from_jid: %Jid{original: ^from_jid}, stanza_type: "message", type: ^type} = conn
   end,
   received: fn _pname, conn, options ->

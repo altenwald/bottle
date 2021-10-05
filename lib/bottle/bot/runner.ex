@@ -8,6 +8,7 @@ defmodule Bottle.Bot.Runner do
   require Logger
 
   @tick_time 250
+  @check_time 1_000
   @max_tick_timeout 2_000
   @min_tick_timeout 150
 
@@ -19,6 +20,10 @@ defmodule Bottle.Bot.Runner do
 
   def get_statement(pid) do
     GenServer.call(pid, :get_statement)
+  end
+
+  def skip(pid) do
+    GenServer.call(pid, :skip)
   end
 
   @impl GenServer
@@ -36,6 +41,13 @@ defmodule Bottle.Bot.Runner do
   end
   def handle_call(:get_statement, _from, {[command|commands], statements}) do
     {:reply, command, {commands, statements}}
+  end
+  def handle_call(:skip, _from, {[], _statements} = state) do
+    {:reply, :ok, state}
+  end
+  def handle_call(:skip, _from, {[{_, name, _, _, _, _, _}|commands], statements}) do
+    commands = Enum.drop_while(commands, fn {_, n, _, _, _, _, _} -> n == name end)
+    {:reply, :ok, {commands, statements}}
   end
 
   defp run_bot({options, steps}) when is_list(options) and is_list(steps) do
@@ -71,16 +83,6 @@ defmodule Bottle.Bot.Runner do
   defp run_actions(statements, optional, sname, i, stimeout, [{__MODULE__, :wait_for, [name, timeout]}|actions]) when is_atom(name) and is_integer(timeout) and timeout > 0 do
     statements = statements ++ [{:wait_for, sname, i, optional, name, [], timeout}]
     run_actions(statements, optional, sname, i, stimeout, actions)
-  end
-
-  defp run_actions(statements, optional, sname, i, timeout, [{__MODULE__, :sending, [name, keywords]}|actions]) when is_atom(name) and is_list(keywords) do
-    statements = statements ++ [{:send_template, sname, i, optional, name, keywords, timeout}]
-    run_actions(statements, optional, sname, i, timeout, actions)
-  end
-
-  defp run_actions(statements, optional, sname, i, timeout, [{__MODULE__, :checking, [name, keywords]}|actions]) when is_atom(name) do
-    statements = statements ++ [{:check!, sname, i, optional, name, keywords, timeout}]
-    run_actions(statements, optional, sname, i, timeout, actions)
   end
 
   defp run_actions(statements, optional, sname, i, timeout, [{module, function, args}|actions]) when module != __MODULE__ do
