@@ -69,7 +69,8 @@ defmodule Bottle.Bot do
           {:DOWN, ^mon_ref, :process, ^pid, _reason} -> :ok
         end
       end)
-      IO.inspect(Bottle.Bot.Stats.get_stats())
+      IO.puts("\n#{IO.ANSI.green_background()}#{IO.ANSI.white()} END  ----------------------- #{IO.ANSI.reset()}")
+      Bottle.Bot.Stats.puts_stats()
     end
   end
 
