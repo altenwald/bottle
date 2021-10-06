@@ -3,11 +3,12 @@ defmodule Bottle.Bot.Server do
   The server is the process running which is using the behaviour defined
   by `Bottle.Bot`.
   """
-  use GenStateMachine
+  use GenStateMachine, restart: :temporary
 
   require Logger
 
   alias Bottle.Bot.Runner
+  alias Bottle.Bot.Stats
   alias Exampple.Xmpp.Jid
 
   defstruct [
@@ -15,6 +16,7 @@ defmodule Bottle.Bot.Server do
     module_name: nil,
     data: %{},
     runner: nil,
+    check_ts: nil,
     check_args: nil,
     check_optional: false
   ]
@@ -27,8 +29,11 @@ defmodule Bottle.Bot.Server do
     {:via, Registry, {@registry, name}}
   end
 
+  def start_link([name, module_name]), do: start_link(name, module_name)
+
   def start_link(name, module_name) when is_atom(module_name) do
     Registry.start_link(keys: :unique, name: @registry)
+    Logger.debug("starting server bot #{name} for module #{module_name}")
     GenStateMachine.start_link(__MODULE__, [name, module_name], name: via(name))
   end
 
@@ -57,7 +62,7 @@ defmodule Bottle.Bot.Server do
       data: data,
       runner: runner
     }
-
+    Stats.create_server_events(name)
     {:ok, :running, state, actions}
   end
 
@@ -71,7 +76,7 @@ defmodule Bottle.Bot.Server do
       {:apply, name, i, optional, {__MODULE__, :checking, [_name, keywords] = args}, _keywords, tick_time} ->
         tick_time = keywords[:timeout] || tick_time
         Logger.info "(#{statedata.name}) step=#{name} i=#{i} t=#{tick_time}ms checking #{inspect(args)}"
-        statedata = %__MODULE__{statedata|check_args: args, check_optional: optional}
+        statedata = %__MODULE__{statedata|check_args: args, check_optional: optional, check_ts: timestamp()}
         actions = [{:state_timeout, tick_time, :tick}]
         {:next_state, :checking, statedata, actions}
 
@@ -88,6 +93,8 @@ defmodule Bottle.Bot.Server do
     if statedata.check_optional do
       :ok = Runner.skip(statedata.runner)
       actions = [{:next_event, {:timeout, :tick}, :tick}]
+      metadata = %{action: :checking, check_args: statedata.check_args}
+      Stats.checking_timeout(statedata.name, diff_time(statedata.check_ts), metadata)
       {:next_state, :running, statedata, actions}
     else
       Logger.error("(#{statedata.data["process_name"]}) checking: #{inspect(statedata.check_args)}")
@@ -101,6 +108,9 @@ defmodule Bottle.Bot.Server do
       statedata = %__MODULE__{statedata|data: Map.merge(statedata.data, result)}
       actions = [{{:timeout, :tick}, @tick_time, :tick}]
       Logger.debug("(#{pname}) configuring tick #{@tick_time}ms")
+      metadata = %{action: :checking, check_args: statedata.check_args}
+      Stats.checking_success(statedata.name, diff_time(statedata.check_ts), metadata)
+      Stats.receiving(statedata.name, metadata)
       {:next_state, :running, statedata, actions}
     rescue
       error ->
@@ -121,13 +131,13 @@ defmodule Bottle.Bot.Server do
     {:keep_state_and_data, actions}
   end
 
-  defp wait_for(true, name, timeout) when timeout <= 0 do
+  def wait_for(true, name, timeout) when timeout <= 0 do
     throw({:wait_for, name})
   end
-  defp wait_for(false, name, timeout) when timeout <= 0 do
+  def wait_for(false, name, timeout) when timeout <= 0 do
     raise "client #{name} not available"
   end
-  defp wait_for(optional, name, timeout) do
+  def wait_for(optional, name, timeout) do
     unless Bottle.Client.is_connected?(%{"process_name" => name}) do
       Process.sleep(100)
       wait_for(optional, name, timeout - 100)
@@ -142,10 +152,19 @@ defmodule Bottle.Bot.Server do
   defp apply_action(_sname, _i, _optional, {__MODULE__, :sending, [name, keywords]}, %{"process_name" => pname} = data) when is_atom(name) and is_list(keywords) do
     origin_id = UUID.uuid4()
     Exampple.Client.send_template(name, [[{:origin_id, origin_id}|keywords]], pname)
+    metadata = %{action: :sending}
+    Stats.sending(pname, metadata)
     data
   end
 
   defp apply_action(_sname, _i, _optional, {module, function, args}, data) when module != __MODULE__ do
+    if module == Bottle.Client and function == :login do
+      Stats.login(data["process_name"], %{action: :login})
+    end
     apply(module, function, [data|args])
   end
+
+  defp diff_time(timestamp), do: timestamp() - timestamp
+
+  defp timestamp, do: System.system_time(:microsecond)
 end

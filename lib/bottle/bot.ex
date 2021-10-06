@@ -51,20 +51,25 @@ defmodule Bottle.Bot do
 
         def actions(), do: Enum.reverse(@run_action)
       end
-      Bottle.Bot.Server.start_link(unquote(name), unquote(module_name))
+      Bottle.Bot.Supervisor.start_child(unquote(name), unquote(module_name))
     end
   end
 
   defmacro show_stats([for: names]) do
     quote do
-      for name <- unquote(names) do
+      unquote(names)
+      |> Enum.map(fn name ->
+        Bottle.Bot.Server.wait_for(false, name, 10_000)
         pid = Process.whereis(name)
-        mon_ref = Process.monitor(name)
-        # TODO: retrieve stats for each process
+        mon_ref = Process.monitor(pid)
+        {pid, mon_ref}
+      end)
+      |> Enum.each(fn {pid, mon_ref} ->
         receive do
           {:DOWN, ^mon_ref, :process, ^pid, _reason} -> :ok
         end
-      end
+      end)
+      IO.inspect(Bottle.Bot.Stats.get_stats())
     end
   end
 
@@ -99,7 +104,7 @@ defmodule Bottle.Bot do
 
   defmacro logout() do
     quote do
-      logout_fun = {Bottle.Client, :logout, []}
+      logout_fun = {Bottle.Client, :disconnect, []}
 
       if @run_block do
         if @step_block do

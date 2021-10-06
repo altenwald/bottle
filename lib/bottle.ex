@@ -65,6 +65,7 @@ defmodule Bottle do
         if working_dir = switches[:"working-dir"] do
           File.cd!(working_dir)
         end
+        Bottle.Bot.Supervisor.start_link()
         Code.eval_file(file)
         :ok
 

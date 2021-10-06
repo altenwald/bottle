@@ -38,7 +38,7 @@ alias Exampple.Xmpp.Jid
     %Conn{stanza_type: "a", stanza: %Xmlel{attrs: %{"h" => h}}} = conn = Client.get_conn(pname)
     %{"conn" => conn, "h" => h}
   end,
-  message: fn pname, conn, type ->
+  message: fn _pname, conn, type ->
     %Conn{stanza_type: "message", type: ^type} = conn
   end,
   chat: fn pname, conn, options ->
