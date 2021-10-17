@@ -44,8 +44,10 @@ defmodule Bottle.Bot do
 
         def id(), do: unquote(name)
 
-        def data() do
-          Enum.into(@bot_data || [], %{})
+        def data, do: data(@bot_data)
+
+        def data(bot_data) when is_list(bot_data) do
+          Enum.into(bot_data, %{})
           |> Map.put("process_name", unquote(name))
         end
 
@@ -77,6 +79,14 @@ defmodule Bottle.Bot do
   defmacro set([{name, value}]) when is_atom(name) do
     quote do
       @bot_data {to_string(unquote(name)), unquote(value)}
+    end
+  end
+
+  defmacro set_from_file(file) when is_binary(file) do
+    {%{} = data, []} = Code.eval_file(file)
+    data = Map.to_list(data)
+    quote do
+      for {key, value} <- unquote(data), do: @bot_data {key, value}
     end
   end
 

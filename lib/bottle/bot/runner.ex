@@ -8,7 +8,6 @@ defmodule Bottle.Bot.Runner do
   require Logger
 
   @tick_time 250
-  @check_time 1_000
   @max_tick_timeout 2_000
   @min_tick_timeout 150
 

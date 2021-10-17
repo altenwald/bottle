@@ -9,6 +9,8 @@ defmodule Bottle.Client do
   @default_port 5222
   @default_tls false
 
+  def config(file), do: Code.eval_file(file)
+
   @spec recv(map(), timeout()) :: map()
   def recv(%{"process_name" => pname} = data, timeout \\ @default_timeout) do
     if (conn = Exampple.Client.get_conn(pname, timeout)) != :timeout do
