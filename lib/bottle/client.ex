@@ -9,7 +9,10 @@ defmodule Bottle.Client do
   @default_port 5222
   @default_tls false
 
-  def config(file), do: Code.eval_file(file)
+  def config(file) do
+    {%{} = data, _} = Code.eval_file(file)
+    data
+  end
 
   @spec recv(map(), timeout()) :: map()
   def recv(%{"process_name" => pname} = data, timeout \\ @default_timeout) do
