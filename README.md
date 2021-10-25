@@ -69,6 +69,45 @@ This means the `send_template` function is accepting the `user1` dataset, is goi
 
 As you can see, the population of the datase save us to indicate custom data again and again in different places.
 
+## Bots
+
+The bots concept is a way to create a new process which is running a whole behaviour in a constant way. The mission is the creation of bots which will be sending messages or creating an interaction between them in an autonomous way configured with templates and checks. An example:
+
+```elixir
+bot :romeo do
+  set_from_file "romeo.exs"
+
+  login()
+  wait_for :julieta
+
+  run for: :infinity, as: :ordered do
+    step :sending do
+      sending :chat, to: :julieta, body: "Oh! Julieta!"
+      checking :receipt, from: :julieta
+      checking :received, from: :julieta
+      checking :displayed, from: :julieta
+    end
+
+    step :receiving do
+      checking :chat, from: :julieta
+      sending :received, to: :julieta
+      sending :displayed, to: :julieta
+    end
+
+    maybe :from_mercutio do
+      checking :chat, from: :mercutio
+      sending :received, to: :mercutio
+    end
+
+    wait 1_000
+  end
+
+  logout()
+end
+```
+
+More coming soon.
+
 ## Into the Shell
 
 We can also perform the actions inside of the shell. If we run the project:
