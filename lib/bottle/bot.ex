@@ -18,8 +18,6 @@ defmodule Bottle.Bot do
 
   - `:once`: it's running only once. Exactly the same as scenarios.
   - `{:times, pos_integer()}`: defines the exact number of times it is running.
-  - `{:while, fun(() -> boolean())}`: evaluates an anonymous function before
-    repeat the loop.
   - `:infinity`: it's not stopping.
   - `{:duration, pos_integer()}`: number of seconds it should be running.
   """

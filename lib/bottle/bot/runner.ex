@@ -36,7 +36,12 @@ defmodule Bottle.Bot.Runner do
     {:stop, :normal, :eos, []}
   end
   def handle_call(:get_statement, from, {[], [statement|statements]}) do
-    handle_call(:get_statement, from, {run_bot(statement), statements})
+    state =
+      case run_bot(statement) do
+        {command, generator} -> {command, [generator|statements]}
+        command -> {command, statements}
+      end
+    handle_call(:get_statement, from, state)
   end
   def handle_call(:get_statement, _from, {[command|commands], statements}) do
     {:reply, command, {commands, statements}}
@@ -49,22 +54,63 @@ defmodule Bottle.Bot.Runner do
     {:reply, :ok, {commands, statements}}
   end
 
+  defp run_bot(generator) when is_function(generator), do: generator.()
+
   defp run_bot({options, steps}) when is_list(options) and is_list(steps) do
     case {options[:for] || {:times, 1}, options[:as] || :ordered} do
+      {:once, _} ->
+        options = Keyword.put(options, :for, {:times, 1})
+        run_bot({options, steps})
+
+      {{:duration, seconds}, _as} ->
+        expiration_time = options[:until] || (System.system_time(:second) + seconds)
+        iterator = options[:iterator] || 0
+        generator = fn ->
+          if expiration_time > System.system_time(:second) do
+            options =
+              options
+              |> Keyword.put(:iterator, iterator + 1)
+              |> Keyword.put(:until, expiration_time)
+            run_bot({options, steps})
+          else
+            []
+          end
+        end
+        options =
+          options
+          |> Keyword.put(:for, {:times, 1})
+          |> Keyword.put(:iterator, iterator)
+        {run_bot({options, steps}), generator}
+
+      {:infinity, _as} ->
+        iterator = options[:iterator] || 0
+        generator = fn ->
+          options = Keyword.put(options, :iterator, iterator + 1)
+          run_bot({options, steps})
+        end
+        options =
+          options
+          |> Keyword.put(:for, {:times, 1})
+          |> Keyword.put(:iterator, iterator)
+        {run_bot({options, steps}), generator}
+
       {{:times, 0}, _} ->
         []
 
       {{:times, n}, :ordered} ->
-        Enum.reduce(1..n, [], &run_steps(&2, &1, @tick_time, steps))
+        iterator = options[:iterator] || 0
+        Enum.reduce(1..n, [], &run_steps(&2, &1 + iterator, @tick_time, steps))
 
       {{:times, n}, :random} ->
+        iterator = options[:iterator] || 0
         steps = Enum.shuffle(steps)
-        Enum.reduce(1..n, [], &run_steps(&2, &1, @tick_time, steps))
+        Enum.reduce(1..n, [], &run_steps(&2, &1 + iterator, @tick_time, steps))
 
       {{:times, n}, :chaotic} ->
-        Enum.reduce(1..n, [], fn _, acc ->
-          timeout = Enum.random(@min_tick_timeout..@max_tick_timeout)
-          run_steps(acc, n, timeout, [Enum.random(steps)])
+        iterator = options[:iterator] || 0
+        Enum.reduce(1..n, [], fn i, acc ->
+          tick_time = Enum.random(@min_tick_timeout..@max_tick_timeout)
+          run_steps(acc, i + iterator, tick_time, [Enum.random(steps)])
         end)
     end
   end
