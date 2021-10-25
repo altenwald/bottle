@@ -80,11 +80,11 @@ defmodule Bottle.Bot do
     end
   end
 
-  defmacro set_from_file(file) when is_binary(file) do
-    {%{} = data, []} = Code.eval_file(file)
-    data = Map.to_list(data)
+  defmacro set_from_file(file) do
     quote do
-      for {key, value} <- unquote(data), do: @bot_data {key, value}
+      {%{} = data, []} = Code.eval_file(unquote(file))
+      data = Map.to_list(data)
+      for {key, value} <- data, do: @bot_data {key, value}
     end
   end
 
