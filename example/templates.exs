@@ -7,10 +7,7 @@ alias Exampple.Xml.Xmlel
 
 [
   chat: fn options ->
-    to_jid =
-      options[:to]
-      |> Bottle.Bot.Server.get_jid()
-      |> Exampple.Xmpp.Jid.to_bare()
+    to_jid = Exampple.Xmpp.Jid.to_bare(options[:to])
 
     body =
       case {options[:payload], options[:body]} do
@@ -20,7 +17,7 @@ alias Exampple.Xml.Xmlel
       end
 
     Xmlel.new("message", %{
-      "id" => UUID.uuid4(),
+      "id" => options[:message_id] || UUID.uuid4(),
       "to" => to_jid,
       "type" => "chat"
     }, [
@@ -28,41 +25,46 @@ alias Exampple.Xml.Xmlel
       ~x[<markable xmlns='urn:xmpp:chat-markers:0'/>],
       ~x[<origin-id xmlns='urn:xmpp:sid:0' id='#{options[:origin_id]}'/>]
     ])
-    |> to_string()
   end,
-  message: fn to_jid, type, payload ->
-    "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='#{type}'>#{payload}</message>"
+  message: fn options ->
+    to_jid = Exampple.Xmpp.Jid.to_bare(options[:to])
+    message_id = options[:message_id] || UUID.uuid4()
+    payload = options[:payload]
+    type = options[:type] || "chat"
+
+    Xmlel.new(
+      "message",
+      %{ "id" => message_id, "to" => to_jid, "type" => type},
+      children: [payload])
   end,
   received: fn options ->
-    to_jid =
-      options[:to]
-      |> Bottle.Bot.Server.get_jid()
-      |> Exampple.Xmpp.Jid.to_bare()
+    to_jid = Exampple.Xmpp.Jid.to_bare(options[:to])
+    message_id = options[:message_id] || UUID.uuid4()
+    origin_id = options[:origin_id]
 
-    "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='chat'>" <>
-      "<received xmlns='urn:xmpp:chat-markers:0' id='#{options[:origin_id]}'/>" <>
-      "</message>"
+    Xmlel.new(
+      "message",
+      %{"id" => message_id, "to" => to_jid, "type" => "chat"},
+      [
+        Xmlel.new("received", %{
+          "xmlns" => "urn:xmpp:chat-markers:0",
+          "id" => origin_id
+        })
+      ])
   end,
   displayed: fn options ->
-    to_jid =
-      options[:to]
-      |> Bottle.Bot.Server.get_jid()
-      |> Exampple.Xmpp.Jid.to_bare()
+    to_jid = Exampple.Xmpp.Jid.to_bare(options[:to])
+    message_id = options[:message_id] || UUID.uuid4()
+    origin_id = options[:origin_id]
 
-    "<message id='#{UUID.uuid4()}' to='#{to_jid}' type='chat'>" <>
-      "<displayed xmlns='urn:xmpp:chat-markers:0' id='#{options[:origin_id]}'/>" <>
-      "</message>"
+    ~x[
+      <message id='#{message_id}' to='#{to_jid}' type='chat'>
+        <displayed xmlns='urn:xmpp:chat-markers:0' id='#{origin_id}'/>
+      </message>
+    ]
   end,
-  stream_mgmt_enable: fn ->
-    "<enable xmlns='urn:xmpp:sm:3' resume='true' max='60'/>"
-  end,
-  stream_mgmt_resume: fn previd, h ->
-    "<resume xmlns='urn:xmpp:sm:3' previd='#{previd}' h='#{h}'/>"
-  end,
-  stream_mgmt_a: fn h ->
-    "<a xmlns='urn:xmpp:sm:3' h='#{h}'/>"
-  end,
-  stream_mgmt_r: fn ->
-    "<r xmlns='urn:xmpp:sm:3'/>"
-  end
+  stream_mgmt_enable: "<enable xmlns='urn:xmpp:sm:3' resume='true' max='60'/>",
+  stream_mgmt_resume: "<resume xmlns='urn:xmpp:sm:3' previd='%{previd}' h='%{h}'/>",
+  stream_mgmt_a: "<a xmlns='urn:xmpp:sm:3' h='%{h}'/>",
+  stream_mgmt_r: "<r xmlns='urn:xmpp:sm:3'/>"
 ]

@@ -25,20 +25,11 @@ defmodule Bottle do
     end
   end
 
-  defmacro __using__(:bot) do
-    quote do
-      import Bottle.{Bot, Client}
-      import Exampple.Xml.Xmlel
-
-      alias Bottle.CLI
-      alias Exampple.Xmpp.Stanza
-    end
-  end
-
   defp eval(file, bindings) do
     if File.exists?(file) do
       {output, _out_bindings} =
-        File.read!(file)
+        file
+        |> File.read!()
         |> Code.eval_string(bindings, file: file)
 
       output
@@ -47,25 +38,35 @@ defmodule Bottle do
     end
   end
 
-  def templates(domain) do
-    eval("templates.exs", domain: domain)
+  def get_templates(filename, bindings \\ []) do
+    eval(filename, bindings)
   end
 
-  def checks(domain) do
-    eval("checks.exs", domain: domain)
+  def get_checks(filename, bindings \\ []) do
+    eval(filename, bindings)
   end
 
   def main(args) do
     opts = [
-      switches: ["working-dir": :string, help: :boolean],
-      aliases: [w: :"working-dir", h: :help]
+      switches: [
+        "checks-file": :string,
+        "templates-file": :string,
+        help: :boolean
+      ],
+      aliases: [
+        c: :"checks-file",
+        t: :"templates-file",
+        h: :help
+      ]
     ]
     case OptionParser.parse(args, opts) do
       {switches, [file], []} ->
         if working_dir = switches[:"working-dir"] do
           File.cd!(working_dir)
         end
-        Bottle.Bot.Supervisor.start_link()
+        Bottle.Template.setup(switches[:"templates-file"] || "templates.exs")
+        Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
+        Bottle.Logger.start_link()
         Code.eval_file(file)
         :ok
 

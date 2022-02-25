@@ -70,7 +70,7 @@ defmodule Bottle.CLI do
     Map.put(data, name, value)
   end
 
-  @spec add_boolean(map(), String.t(), String.t()) :: map()
+  @spec add_boolean(map(), String.t(), boolean()) :: map()
   def add_boolean(data, name, default) do
     value =
       ifnil data[name] do
