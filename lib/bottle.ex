@@ -66,6 +66,7 @@ defmodule Bottle do
         end
         Bottle.Template.setup(switches[:"templates-file"] || "templates.exs")
         Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
+        Bottle.Bot.setup()
         Bottle.Logger.start_link()
         Code.eval_file(file)
         :ok

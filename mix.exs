@@ -6,6 +6,7 @@ defmodule Bottle.MixProject do
       app: :bottle,
       version: "0.2.1",
       elixir: "~> 1.10",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: [
@@ -14,6 +15,9 @@ defmodule Bottle.MixProject do
       ]
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   def application do
     [

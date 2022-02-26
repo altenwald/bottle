@@ -52,12 +52,20 @@ defmodule Bottle.Action do
     module = to_module(name)
     quote do
       defmodule unquote(module) do
+        @moduledoc false
         use Task
 
+        @doc """
+        Start the action as a new process.
+        """
         def start(data) do
           Task.start(__MODULE__, :run, [data])
         end
 
+        @doc """
+        Run in foreground the task. This function is in use
+        by `start/1` to launch the task in background.
+        """
         def run(data) do
           var!(data) = data
           unquote(block)
