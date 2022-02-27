@@ -20,13 +20,16 @@ defmodule Bottle.BotTest do
     assert_receive {:setup, %{"process_name" => :user1}}
     assert_receive {:setup, %{"process_name" => :user2}}
 
-    assert_receive {:send_message, %{"process_name" => :user1}}, 5_000
-    assert_receive {:send_message, %{"process_name" => :user2}}, 5_000
-    assert_receive {:send_message, %{"process_name" => :user1}}, 5_000
-    assert_receive {:send_message, %{"process_name" => :user2}}, 5_000
+    jid1 = Bottle.Bot.get_jid(data_user1)
+    jid2 = Bottle.Bot.get_jid(data_user2)
 
-    assert_receive {:send_prob_message, %{"process_name" => :user1}}, 5_000
-    assert_receive {:send_prob_message, %{"process_name" => :user2}}, 5_000
+    assert_receive {:send_message, %{"process_name" => :user1, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
+    assert_receive {:send_message, %{"process_name" => :user2, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
+    assert_receive {:send_message, %{"process_name" => :user1, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
+    assert_receive {:send_message, %{"process_name" => :user2, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
+
+    assert_receive {:send_prob_message, %{"process_name" => :user1, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
+    assert_receive {:send_prob_message, %{"process_name" => :user2, "to_jid" => jid}} when jid in [jid1, jid2], 5_000
 
     Bot.stop(bot1)
     Bot.stop(bot2)

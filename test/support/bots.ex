@@ -9,5 +9,5 @@ bot :active_user do
     data
   end
   Bottle.Bot.run ~w[ send_message ]a, to: :random
-  Bottle.Bot.run_prob {2, 10}, ~w[ send_prob_message ]a, to: :random
+  Bottle.Bot.run_prob {6, 10}, ~w[ send_prob_message ]a, to: :random
 end

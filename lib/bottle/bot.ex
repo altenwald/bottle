@@ -34,7 +34,7 @@ defmodule Bottle.Bot do
   """
 
   def setup do
-    Bottle.Bot.Storage.setup()
+    Bottle.Bot.Registry.setup()
     :pg.start_link()
   end
 
@@ -55,11 +55,9 @@ defmodule Bottle.Bot do
       @impl GenServer
       def init([data]) do
         :pg.join(Bottle.Bot, self())
-        jid =
-          Exampple.Xmpp.Jid.new(data["user"], data["domain"], data["resource"])
-          |> Exampple.Xmpp.Jid.to_bare()
+        jid = Bottle.Bot.get_jid(data)
 
-        Bottle.Bot.Storage.put(self(), jid)
+        Bottle.Bot.Registry.put(jid)
         {:ok, bootstrap(data), {:continue, :init}}
       end
 
@@ -94,13 +92,18 @@ defmodule Bottle.Bot do
     end
   end
 
+  def get_jid(%{"user" => user, "domain" => domain, "resource" => res}) do
+    Exampple.Xmpp.Jid.new(user, domain, res)
+    |> to_string()
+  end
+
   defp process_options(data, []), do: data
 
   defp process_options(data, [{:to, :random} | opts]) do
     jid =
       :pg.get_members(Bottle.Bot)
       |> Enum.random()
-      |> Bottle.Bot.Storage.get()
+      |> Bottle.Bot.Registry.get()
 
     data
     |> Map.put("to_jid", jid)
@@ -108,7 +111,7 @@ defmodule Bottle.Bot do
   end
 
   defp process_options(data, [{:to, user} | opts]) when is_atom(user) do
-    jid = Bottle.Bot.Storage.get(user)
+    jid = Bottle.Bot.Registry.get(user)
 
     data
     |> Map.put("to_jid", jid)
