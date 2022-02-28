@@ -81,8 +81,13 @@ defmodule Bottle.Checks do
   as first parameter and the options as second parameter.
   """
   def validate(name, key, options \\ []) do
-    GenServer.call(name, {:validate, key, options})
+    timeout = get_timeout(options[:timeout])
+    GenServer.call(name, {:validate, key, options}, timeout)
   end
+
+  defp get_timeout(nil), do: 5_000
+  defp get_timeout(:infinity), do: :infinity
+  defp get_timeout(timeout) when is_integer(timeout), do: timeout + 1_000
 
   @doc """
   Remove all the events from the queue. Perfect for a fresh start.
@@ -141,7 +146,7 @@ defmodule Bottle.Checks do
       end
 
     if wait_check = Enum.reduce_while(wait_list, nil, check) do
-      Process.cancel_timer(wait_check.ref)
+      cancel_timer(wait_check.ref)
       GenServer.reply(wait_check.from, {:ok, {wait_check.result, event}})
       {:noreply, remove_from_wait_list(state, wait_check.from)}
     else
@@ -149,6 +154,9 @@ defmodule Bottle.Checks do
       {:noreply, %__MODULE__{state | events: events}}
     end
   end
+
+  defp cancel_timer(:infinity), do: nil
+  defp cancel_timer(ref) when is_reference(ref), do: :erlang.cancel_timer(ref)
 
   @impl GenServer
   def handle_call({:validate, key, options}, from, %__MODULE__{events: events} = state) do

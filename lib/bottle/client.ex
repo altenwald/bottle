@@ -31,15 +31,6 @@ defmodule Bottle.Client do
   @default_max_events 50
   @default_tcp_handler Exampple.Tcp
 
-  @doc """
-  Reads the configuration from a script Elixir file (exs) and returns
-  the data as a map.
-  """
-  def config(file) do
-    {%{} = data, _} = Code.eval_file(file)
-    data
-  end
-
   defp values(data, keys) do
     for key <- keys do
       case key do
@@ -193,12 +184,13 @@ defmodule Bottle.Client do
   defp checks_pname(pname), do: String.to_atom("#{pname}_checks")
 
   defp client_start(%{"process_name" => pname} = data) do
-    Exampple.Client.start_link(pname, %{
-      host: data["host"],
-      domain: data["domain"],
-      port: data["port"] || @default_port,
-      tcp_handler: data["tcp_handler"] || @default_tcp_handler
-    })
+    {:ok, _pid} =
+      Exampple.Client.start_link(pname, %{
+        host: data["host"],
+        domain: data["domain"],
+        port: data["port"] || @default_port,
+        tcp_handler: data["tcp_handler"] || @default_tcp_handler
+      })
 
     checks_pname = checks_pname(pname)
     max_events = data[:max_events] || @default_max_events

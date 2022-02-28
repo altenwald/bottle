@@ -55,7 +55,7 @@ defmodule Bottle.Bot do
       @impl GenServer
       def init([data]) do
         :pg.join(Bottle.Bot, self())
-        jid = Bottle.Bot.get_jid(data)
+        jid = Bottle.Config.get_jid(data)
 
         Bottle.Bot.Registry.put(jid)
         {:ok, bootstrap(data), {:continue, :init}}
@@ -92,16 +92,15 @@ defmodule Bottle.Bot do
     end
   end
 
-  def get_jid(%{"user" => user, "domain" => domain, "resource" => res}) do
-    Exampple.Xmpp.Jid.new(user, domain, res)
-    |> to_string()
-  end
-
   defp process_options(data, []), do: data
 
   defp process_options(data, [{:to, :random} | opts]) do
     jid =
       :pg.get_members(Bottle.Bot)
+      |> case do
+        [_] = pids -> pids
+        pids -> List.delete(pids, self())
+      end
       |> Enum.random()
       |> Bottle.Bot.Registry.get()
 
@@ -164,11 +163,15 @@ defmodule Bottle.Bot do
     action_module.run_pools_info()
     |> Enum.reduce(data, fn {actions, opts}, data_acc ->
       data_acc = process_options(data_acc, opts)
-      # TODO: we have to check size and launch in a process which controls
-      #       there are always that size.
       for action <- actions do
-        Bottle.Action.run(data_acc, action)
+        run = fn ->
+          Bottle.Action.run(data_acc, action)
+        end
+        size = opts[:size]
+        # TODO: put in a dynamic supervisor
+        Bottle.Bot.Pool.start_link(size: size, run: run)
       end
+      data_acc
     end)
   end
 

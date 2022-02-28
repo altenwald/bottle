@@ -9,3 +9,9 @@ action :send_prob_message do
   # IO.puts("#{inspect(data["parent"])} send_prob_message #{inspect(data)}")
   send(data["parent"], {:send_prob_message, data})
 end
+
+action :receive_ok do
+  receive do
+    :ok -> data
+  end
+end

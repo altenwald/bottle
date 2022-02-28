@@ -18,7 +18,7 @@ CLI.banner "Send message from user1 to user2"
 
 user1
 |> send_template(:message, [
-  to_jid: user2["user"] <> "@" <> user2["domain"],
+  to_jid: get_bare_jid(user2),
   type: "chat",
   payload: "<body>Hello!</body>"
 ])
@@ -27,24 +27,17 @@ user1
 
 CLI.banner "User2 receives the message"
 
-user2 =
-  user2
-  |> check!(:message, ["chat"])
+user2 = check!(user2, :message, ["chat"])
 
 CLI.banner "User2 sends back a reply"
 
 reply = Stanza.message_resp(user2["conn"], [~x[<body>OK!</body>]])
 
-user2
-|> send_stanza(reply)
+send_stanza(user2, reply)
 
-user1
-|> check!(:message)
+check!(user1, :message)
 
 CLI.banner "Teardown!"
 
-user1
-|> disconnect()
-
-user2
-|> disconnect()
+disconnect(user1)
+disconnect(user2)

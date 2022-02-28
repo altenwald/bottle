@@ -17,7 +17,19 @@ defmodule Bottle do
 
   defmacro __using__(:scenario) do
     quote do
-      import Bottle.Client
+      import Bottle.{Client, Config}
+      import Exampple.Xml.Xmlel
+
+      alias Bottle.CLI
+      alias Exampple.Xmpp.Stanza
+    end
+  end
+
+  defmacro __using__(:bot) do
+    quote do
+      import Bottle.Action, except: [run: 2]
+      import Bottle.Bot, except: [setup: 0]
+      import Bottle.{Client, Config}
       import Exampple.Xml.Xmlel
 
       alias Bottle.CLI
