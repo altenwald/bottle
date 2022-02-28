@@ -197,6 +197,7 @@ defmodule Bottle.Client do
     Bottle.Checks.start_link(checks_pname, pname, max_events)
 
     Bottle.Logger.add_client(pname)
+    Bottle.Stats.add_client(pname)
 
     Map.put(data, "checks_process_name", checks_pname)
   end

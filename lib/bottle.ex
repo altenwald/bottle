@@ -80,6 +80,7 @@ defmodule Bottle do
         Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
         Bottle.Bot.setup()
         Bottle.Logger.start_link()
+        Bottle.Stats.start_link()
         Code.eval_file(file)
         :ok
 
@@ -90,6 +91,13 @@ defmodule Bottle do
         IO.puts("Unknown parameters")
         help()
     end
+  end
+
+  def show_stats(time) do
+    Process.sleep(time)
+    Bottle.Stats.get_stats()
+    |> IO.inspect()
+    show_stats(time)
   end
 
   defp help do

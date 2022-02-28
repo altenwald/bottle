@@ -21,7 +21,9 @@ defmodule Bottle.Logger do
   @impl GenServer
   def handle_cast({:add_client, client}, state) do
     :ok = Exampple.Client.trace(client, true)
-    {:noreply, Map.put(state, Process.whereis(client), client)}
+    pid = Process.whereis(client)
+    _ref = Process.monitor(pid)
+    {:noreply, Map.put(state, pid, client)}
   end
 
   defp print(:received, name, msg) do
@@ -52,5 +54,9 @@ defmodule Bottle.Logger do
 
   def handle_info({_event_name, _pid, _event_data}, state) do
     {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    {:noreply, Map.delete(state, pid)}
   end
 end
