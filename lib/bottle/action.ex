@@ -9,7 +9,7 @@ defmodule Bottle.Action do
   for a response:
 
   ```elixir
-  action :romeo_chat do
+  action :send_message do
     data
     |> Map.put("message_id", "message1")
     |> Bottle.Client.send_template(:message, to: "juliet@example.com")
@@ -68,7 +68,12 @@ defmodule Bottle.Action do
         """
         def run(data) do
           var!(data) = data
-          unquote(block)
+          result = unquote(block)
+          Bottle.Stats.notify(:action_success, __MODULE__, result)
+        rescue
+          error ->
+            Bottle.Stats.notify(:action_failure, __MODULE__, error)
+            reraise error, __STACKTRACE__
         end
       end
     end

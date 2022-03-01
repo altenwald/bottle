@@ -13,12 +13,40 @@ defmodule Bottle.Logger do
     GenServer.cast(__MODULE__, {:add_client, client})
   end
 
+  def info(name, message) when is_pid(name) do
+    info("#{inspect(name)}", message)
+  end
+
+  def info(name, message) do
+    GenServer.cast(__MODULE__, {:info, name, message})
+  end
+
+  def error(name, message) when is_pid(name) do
+    error("#{inspect(name)}", message)
+  end
+
+  def error(name, message) do
+    GenServer.cast(__MODULE__, {:error, name, message})
+  end
+
   @impl GenServer
   def init([]) do
     {:ok, %{}}
   end
 
   @impl GenServer
+  def handle_cast({:info, name, msg}, state) do
+    ts = to_string(NaiveDateTime.utc_now())
+    IO.puts("#{ts} [#{name}] info: #{@green}#{msg}#{@reset}")
+    {:noreply, state}
+  end
+
+  def handle_cast({:error, name, msg}, state) do
+    ts = to_string(NaiveDateTime.utc_now())
+    IO.puts("#{ts} [#{name}] error: #{@red}#{msg}#{@reset}")
+    {:noreply, state}
+  end
+
   def handle_cast({:add_client, client}, state) do
     :ok = Exampple.Client.trace(client, true)
     pid = Process.whereis(client)

@@ -33,11 +33,18 @@ defmodule Bottle.Bot do
   launching 10 processes and keeping always 10 processes alive.
   """
 
+  @doc """
+  Setup the bot needed infrastructure. Bots uses a `:pg` (process group)
+  to get information to know how many bots are running and get a random
+  destination for a message.
+  """
+  @spec setup() :: {:ok, pid()}
   def setup do
     Bottle.Bot.Registry.setup()
     :pg.start_link()
   end
 
+  @doc false
   defmacro __using__(_opts) do
     quote do
       use GenServer
@@ -49,6 +56,7 @@ defmodule Bottle.Bot do
       @before_compile Bottle.Bot
 
       @default_warmup_time 1_000
+      @default_tick_time 1_000
 
       def bootstrap(data), do: data
 
@@ -73,7 +81,8 @@ defmodule Bottle.Bot do
           |> Bottle.Bot.run_actions(__MODULE__)
           |> Bottle.Bot.run_prob_actions(__MODULE__)
 
-        Process.send_after(self(), :tick, 1_000)
+        tick_time = data["tick_time"] || @default_tick_time
+        Process.send_after(self(), :tick, tick_time)
         {:noreply, data}
       end
 
@@ -84,7 +93,8 @@ defmodule Bottle.Bot do
           |> Bottle.Bot.run_actions(__MODULE__)
           |> Bottle.Bot.run_prob_actions(__MODULE__)
 
-        Process.send_after(self(), :tick, 1_000)
+        tick_time = data["tick_time"] || @default_tick_time
+        Process.send_after(self(), :tick, tick_time)
         {:noreply, data}
       end
 

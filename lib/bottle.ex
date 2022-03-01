@@ -6,6 +6,12 @@ defmodule Bottle do
   The facilities Bottle gives to create scenarios
   """
 
+  @green IO.ANSI.green()
+  @red IO.ANSI.red()
+  @purple IO.ANSI.magenta()
+  @yellow IO.ANSI.yellow()
+  @reset IO.ANSI.reset()
+
   defmacro __using__(:checks) do
     quote do
       alias Exampple.Client
@@ -17,6 +23,7 @@ defmodule Bottle do
 
   defmacro __using__(:scenario) do
     quote do
+      import Bottle, only: [config: 1]
       import Bottle.{Client, Config}
       import Exampple.Xml.Xmlel
 
@@ -27,6 +34,7 @@ defmodule Bottle do
 
   defmacro __using__(:bot) do
     quote do
+      import Bottle, only: [config: 1]
       import Bottle.Action, except: [run: 2]
       import Bottle.Bot, except: [setup: 0]
       import Bottle.{Client, Config}
@@ -58,15 +66,21 @@ defmodule Bottle do
     eval(filename, bindings)
   end
 
+  defdelegate config(file), to: Bottle.Config, as: :read_file
+
   def main(args) do
     opts = [
       switches: [
+        buckets: :integer,
         "checks-file": :string,
+        quiet: :boolean,
         "templates-file": :string,
         help: :boolean
       ],
       aliases: [
+        b: :buckets,
         c: :"checks-file",
+        q: :quiet,
         t: :"templates-file",
         h: :help
       ]
@@ -79,8 +93,8 @@ defmodule Bottle do
         Bottle.Template.setup(switches[:"templates-file"] || "templates.exs")
         Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
         Bottle.Bot.setup()
-        Bottle.Logger.start_link()
-        Bottle.Stats.start_link()
+        unless switches[:quiet], do: Bottle.Logger.start_link()
+        Bottle.Stats.start_link(buckets: switches[:buckets] || (6 * 60))
         Code.eval_file(file)
         :ok
 
@@ -93,11 +107,60 @@ defmodule Bottle do
     end
   end
 
-  def show_stats(time) do
+  def show_stats(time, line \\ 10) do
+    show_stats(time, 0, line)
+  end
+
+  defp show_stats(time, 0, max_line) do
+    print_stats_header()
+    show_stats(time, max_line, max_line)
+  end
+
+  defp show_stats(time, line, max_line) do
     Process.sleep(time)
     Bottle.Stats.get_stats()
-    |> IO.inspect()
-    show_stats(time)
+    |> print_stats()
+    show_stats(time, line - 1, max_line)
+  end
+
+  defp print_stats_header do
+    IO.puts("""
+    +------+----------+----------+----------+----------+----------+----------+----------+----------+
+    | type | messages | presence |   iqs    |  total   | connectd | disconn. |  act.ok  | act.fail |
+    +------+----------+----------+----------+----------+----------+----------+----------+----------+
+    """ |> String.trim_trailing())
+  end
+
+  defp num(stat, color) do
+    stat
+    |> to_string()
+    |> String.pad_leading(8)
+    |> String.replace_prefix("", color)
+    |> String.replace_suffix("", @reset)
+  end
+
+  defp print_stats(stats) do
+    data =
+      "| #{@green}sent#{@reset} | " <>
+        num(stats.message_sent, @green) <> " | " <>
+        num(stats.presence_sent, @green) <> " | " <>
+        num(stats.iq_sent, @green) <> " | " <>
+        num(stats.total_sent, @green) <> " | " <>
+        num(stats.connected, @purple) <> " | " <>
+        num(stats.disconnected, @yellow) <> " | " <>
+        num(stats.action_success, @green) <> " | " <>
+        num(stats.action_failure, @red) <> " |\n" <>
+        "| #{@red}recv#{@reset} | " <>
+        num(stats.message_recv, @red) <> " | " <>
+        num(stats.presence_recv, @red) <> " | " <>
+        num(stats.iq_recv, @red) <> " | " <>
+        num(stats.total_recv, @red) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " |"
+
+    IO.puts(data)
   end
 
   defp help do

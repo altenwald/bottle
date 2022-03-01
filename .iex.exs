@@ -1,8 +1,11 @@
 import Bottle
 import Bottle.Client
+import Exampple.Xml.Xmlel, only: [sigil_x: 2]
 
 alias Bottle.CLI
 alias Exampple.Client
+alias Exampple.Router.Conn
+alias Exampple.Xml.Xmlel
 
 IEx.configure([
   default_prompt: "#{IO.ANSI.green()}bottle#{IO.ANSI.reset()}(#{IO.ANSI.blue()}%counter#{IO.ANSI.reset()})>"

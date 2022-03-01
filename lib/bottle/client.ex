@@ -31,6 +31,8 @@ defmodule Bottle.Client do
   @default_max_events 50
   @default_tcp_handler Exampple.Tcp
 
+  @default_timeout 5_000
+
   defp values(data, keys) do
     for key <- keys do
       case key do
@@ -93,10 +95,14 @@ defmodule Bottle.Client do
   further information.
   """
   def check!(%{"process_name" => pname} = data, name, keys \\ []) do
-    args = [{:process_name, pname} | values(data, keys)]
+    opts =
+      data
+      |> values([:process_name | keys])
+      |> Keyword.put(:timeout, data["timeout"] || @default_timeout)
+
     checks_pname = data["checks_process_name"] || checks_pname(pname)
     try do
-      {:ok, {result, _event}} = Checks.validate(checks_pname, name, args)
+      {:ok, {result, _event}} = Checks.validate(checks_pname, name, opts)
       case result do
         %struct_name{} ->
           key =
@@ -115,7 +121,17 @@ defmodule Bottle.Client do
           Map.put(data, "result", result)
       end
     rescue
-      error -> raise "check!<#{inspect(pname)}> #{inspect(name)}#{inspect(keys)} ==> #{inspect(error)}"
+      error ->
+        events =
+          Checks.get_events(checks_pname)
+          |> Enum.map(&"  #{inspect(&1)}")
+          |> Enum.join("\n")
+
+        raise """
+        check!<#{inspect(pname)}> #{inspect(name)}#{inspect(keys)} ==> #{inspect(error)}
+        events:
+        #{events}
+        """
     end
   end
 
@@ -258,7 +274,7 @@ defmodule Bottle.Client do
   - `:bind`: checking the resource is bound correctly.
   - `:presence`: checking we receive the echo of our initial presence.
 
-  See `Bottle.Checks`
+  See `Bottle.Checks.Storage`.
   """
   def login(data) do
     data
@@ -268,35 +284,35 @@ defmodule Bottle.Client do
       %{"tls" => true} = data ->
         data
         |> send_template(:starttls)
-        |> check!(:starttls, timeout: 500)
+        |> check!(:starttls)
         |> upgrade_tls()
-        |> check!(:features, timeout: 500)
+        |> check!(:features)
 
       data -> data
     end
     |> send_template(:auth, ~w[ user password ]a)
-    |> check!(:auth, timeout: 500)
+    |> check!(:auth)
     |> send_template(:init, ~w[ domain ]a)
-    |> check!(:init, timeout: 500)
+    |> check!(:init)
     |> case do
       %{"stream_mgmt" => "resume"} = data ->
         data
         |> CLI.add_string("stream_id")
         |> CLI.add_string("h", "1")
         |> send_template(:stream_mgmt_resume, ~w[ h stream_id ]a)
-        |> check!(:stream_mgmt_resumed, timeout: 500)
+        |> check!(:stream_mgmt_resumed)
 
       %{"stream_mgmt" => "enable"} = data ->
         data
         |> send_template(:bind, ~w[ resource ]a)
-        |> check!(:bind, timeout: 500)
+        |> check!(:bind)
         |> send_template(:stream_mgmt_enable)
-        |> check!(:stream_mgmt_enabled, timeout: 500)
+        |> check!(:stream_mgmt_enabled)
 
       data ->
         data
         |> send_template(:bind, ~w[ resource ]a)
-        |> check!(:bind, timeout: 500)
+        |> check!(:bind)
     end
     |> case do
       %{"initial_presence" => false} = data ->
@@ -305,7 +321,7 @@ defmodule Bottle.Client do
       data ->
         data
         |> send_template(:presence)
-        |> check!(:presence, timeout: 500)
+        |> check!(:presence)
     end
   end
 end

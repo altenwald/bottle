@@ -41,6 +41,7 @@ defmodule Bottle.Template do
       starttls: "<starttls xmlns='#{@xmlns_tls}'/>",
       auth: fn user: user, password: password ->
         base64 = Base.encode64(<<0, user::binary, 0, password::binary>>)
+        Bottle.Logger.info("auth", "user=#{inspect(user)} password=#{inspect(password)} hash=#{inspect(base64)}")
 
         Xmlel.new("auth", %{"xmlns" => @xmlns_sasl, "mechanism" => "PLAIN"}, [base64])
       end,

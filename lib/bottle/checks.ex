@@ -5,8 +5,6 @@ defmodule Bottle.Checks do
   """
   use GenServer
 
-  alias Exampple.Router.Conn
-
   @default_max_events 50
 
   defstruct monitor_ref: nil,
@@ -24,7 +22,7 @@ defmodule Bottle.Checks do
   @type t() :: %__MODULE__{
     monitor_ref: reference() | nil,
     max_events: pos_integer() | :infinity,
-    events: [Conn.t()],
+    events: [any()],
     wait_list: %{ GenServer.from() => {reference(), check_name(), options()} }
   }
 
@@ -94,6 +92,10 @@ defmodule Bottle.Checks do
   """
   def flush(name) do
     GenServer.cast(name, :flush)
+  end
+
+  def get_events(name) do
+    GenServer.call(name, :get_events)
   end
 
   @doc false
@@ -194,6 +196,10 @@ defmodule Bottle.Checks do
         wait_list = Map.put(state.wait_list, from, {ref, key, options})
         {:noreply, %__MODULE__{state | wait_list: wait_list}}
     end
+  end
+
+  def handle_call(:get_events, _from, state) do
+    {:reply, state.events, state}
   end
 
   defp remove_from_wait_list(%__MODULE__{wait_list: wait_list} = state, from) do

@@ -8,7 +8,7 @@ defmodule Bottle.Config do
   Reads the configuration from a script Elixir file (exs) and returns
   the data as a map.
   """
-  def config(file) do
+  def read_file(file) do
     {%{} = data, _} = Code.eval_file(file)
     data
   end

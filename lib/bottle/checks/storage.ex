@@ -38,7 +38,7 @@ defmodule Bottle.Checks.Storage do
   defp default_checks do
     [
       starttls: fn {:received, _pid, data}, _opts ->
-        %Conn{stanza_type: "success"} = data[:conn]
+        %Conn{stanza_type: "proceed"} = data[:conn]
       end,
       features: fn {:received, _pid, data}, _opts ->
         %Conn{
@@ -46,7 +46,7 @@ defmodule Bottle.Checks.Storage do
           stanza: stanza
         } = data[:conn]
         [%Xmlel{name: "mechanisms"} = mech] = stanza["mechanisms"]
-        true = %Xmlel{name: "mechanisms", children: ["PLAIN"]} in mech["mechanism"]
+        true = %Xmlel{name: "mechanism", children: ["PLAIN"]} in mech["mechanism"]
         [%Xmlel{name: "register"}] = stanza["register"]
         data[:conn]
       end,
