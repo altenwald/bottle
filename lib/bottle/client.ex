@@ -122,6 +122,7 @@ defmodule Bottle.Client do
       end
     rescue
       error ->
+
         events =
           Checks.get_events(checks_pname)
           |> Enum.map(&"  #{inspect(&1)}")
@@ -129,6 +130,10 @@ defmodule Bottle.Client do
 
         raise """
         check!<#{inspect(pname)}> #{inspect(name)}#{inspect(keys)} ==> #{inspect(error)}
+
+        data:
+        #{inspect(data)}
+
         events:
         #{events}
         """
@@ -209,7 +214,7 @@ defmodule Bottle.Client do
       })
 
     checks_pname = checks_pname(pname)
-    max_events = data[:max_events] || @default_max_events
+    max_events = data["max_events"] || @default_max_events
     Bottle.Checks.start_link(checks_pname, pname, max_events)
 
     Bottle.Logger.add_client(pname)
