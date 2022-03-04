@@ -71,18 +71,9 @@ defmodule Bottle.Bot do
 
       @impl GenServer
       def handle_continue(:init, data) do
-        data =
-          data
-          |> then(fn data ->
-            Process.sleep(data["warmup_time"] || @default_warmup_time)
-            data
-          end)
-          |> Bottle.Bot.run_pools(__MODULE__)
-          |> Bottle.Bot.run_actions(__MODULE__)
-          |> Bottle.Bot.run_prob_actions(__MODULE__)
-
-        tick_time = data["tick_time"] || @default_tick_time
-        Process.send_after(self(), :tick, tick_time)
+        data = Bottle.Bot.run_pools(data, __MODULE__)
+        warmup_time = data["warmup_time"] || @default_warmup_time
+        Process.send_after(self(), :tick, warmup_time)
         {:noreply, data}
       end
 
