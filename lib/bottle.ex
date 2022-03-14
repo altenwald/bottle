@@ -167,10 +167,13 @@ defmodule Bottle do
     IO.puts """
     Bottle v#{Application.spec(:bottle)[:vsn]}
 
-    Syntax: bottle [-w <directory>] [-h] file.exs
+    Syntax: bottle [-w <dir>] [-c <file>] [-t <file>] [-q] [-h] file.exs
 
     Parameters:
-      -w | --working-dir <directory>  Changes the working directory.
+      -b | --buckets N                Stats storage 1 bucket = 1 min.
+      -c | --checks-file FILE         File to load the checks.
+      -q | --quiet                    Don't show details (stanzas).
+      -t | --templates-file FILE      File to load the templates.
       -h | --help                     Shows this message.
       file.exs                        File to be processed.
     """
