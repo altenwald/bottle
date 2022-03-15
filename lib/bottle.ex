@@ -23,7 +23,7 @@ defmodule Bottle do
 
   defmacro __using__(:scenario) do
     quote do
-      import Bottle, only: [config: 1]
+      import Bottle, only: [config: 1, distrib: 2, distrib: 3]
       import Bottle.{Client, Config}
       import Exampple.Xml.Xmlel
 
@@ -34,7 +34,7 @@ defmodule Bottle do
 
   defmacro __using__(:bot) do
     quote do
-      import Bottle, only: [config: 1]
+      import Bottle, only: [config: 1, distrib: 2, distrib: 3]
       import Bottle.Action, except: [run: 2]
       import Bottle.Bot, except: [setup: 0]
       import Bottle.{Client, Config}
@@ -94,6 +94,7 @@ defmodule Bottle do
         Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
         Bottle.Bot.setup()
         unless switches[:quiet], do: Bottle.Logger.start_link()
+        Bottle.Code.start_link([])
         Bottle.Stats.start_link(buckets: switches[:buckets] || (6 * 60))
         Code.eval_file(file)
         :ok
@@ -105,6 +106,15 @@ defmodule Bottle do
         IO.puts("Unknown parameters")
         help()
     end
+  end
+
+  def distrib(local_node, cookie \\ :bottle, remote_nodes) do
+    {:ok, _pid} = Node.start(local_node)
+    true = Node.set_cookie(cookie)
+    Enum.each(remote_nodes, fn remote_node ->
+      {:ok, _pid} = Bottle.Remote.start_link(remote_node)
+    end)
+    :ok
   end
 
   def show_stats(time, line \\ 10) do

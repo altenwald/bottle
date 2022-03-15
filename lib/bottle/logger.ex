@@ -5,12 +5,14 @@ defmodule Bottle.Logger do
   @red IO.ANSI.red()
   @reset IO.ANSI.reset()
 
+  @pname {:global, __MODULE__}
+
   def start_link do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: @pname)
   end
 
   def add_client(client) do
-    GenServer.cast(__MODULE__, {:add_client, client})
+    GenServer.cast(@pname, {:add_client, client, node()})
   end
 
   def info(name, message) when is_pid(name) do
@@ -18,7 +20,7 @@ defmodule Bottle.Logger do
   end
 
   def info(name, message) do
-    GenServer.cast(__MODULE__, {:info, name, message})
+    GenServer.cast(@pname, {:info, name, message})
   end
 
   def error(name, message) when is_pid(name) do
@@ -26,7 +28,7 @@ defmodule Bottle.Logger do
   end
 
   def error(name, message) do
-    GenServer.cast(__MODULE__, {:error, name, message})
+    GenServer.cast(@pname, {:error, name, message})
   end
 
   @impl GenServer
@@ -47,11 +49,18 @@ defmodule Bottle.Logger do
     {:noreply, state}
   end
 
-  def handle_cast({:add_client, client}, state) do
-    :ok = Exampple.Client.trace(client, true)
+  def handle_cast({:add_client, client, node}, state) when node == node() do
+    :ok = Exampple.Client.trace({client, node}, true)
     pid = Process.whereis(client)
     _ref = Process.monitor(pid)
-    {:noreply, Map.put(state, pid, client)}
+    {:noreply, Map.put(state, pid, {client, node})}
+  end
+
+  def handle_cast({:add_client, client, remote_node}, state) do
+    :ok = Exampple.Client.trace({client, remote_node}, true)
+    pid = :rpc.call(remote_node, Process, :whereis, [client])
+    _ref = Process.monitor(pid)
+    {:noreply, Map.put(state, pid, {client, remote_node})}
   end
 
   defp print(:received, name, msg) do
@@ -66,13 +75,13 @@ defmodule Bottle.Logger do
 
   @impl GenServer
   def handle_info({:received, pid, data}, state) do
-    name = state[pid] || pid
+    {name, _node} = state[pid] || pid
     print :received, name, to_string(data[:conn].stanza)
     {:noreply, state}
   end
 
   def handle_info({:sent, pid, data}, state) do
-    name = state[pid] || pid
+    {name, _node} = state[pid] || pid
     packet = data[:packet]
     if is_binary(packet) do
       print :sent, name, packet

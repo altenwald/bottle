@@ -21,9 +21,21 @@ defmodule Bottle.Checks.Storage do
     :ok
   end
 
+  def init do
+    if :ets.info(__MODULE__) == :undefined do
+      __MODULE__ = :ets.new(__MODULE__, [:named_table, :set, :public])
+    end
+  end
+
   @spec put(Checks.check_name(), Checks.check_function()) :: :ok
   def put(key, fun) do
     true = :ets.insert(__MODULE__, {key, fun})
+    :ok
+  end
+
+  @spec put([{Checks.check_name(), Checks.check_function()}]) :: :ok
+  def put(checks) do
+    :ets.insert(__MODULE__, checks)
     :ok
   end
 
@@ -33,6 +45,11 @@ defmodule Bottle.Checks.Storage do
       [{^key, fun}] -> fun
       [] -> nil
     end
+  end
+
+  @spec get() :: [{Checks.check_name(), Checks.check_function()}]
+  def get do
+    :ets.tab2list(__MODULE__)
   end
 
   defp default_checks do

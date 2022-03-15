@@ -77,6 +77,7 @@ defmodule Bottle.Action do
         end
       end
     end
+    |> tap(&Bottle.Code.register(&1, module, :action))
   end
 
   def run(data, name) do

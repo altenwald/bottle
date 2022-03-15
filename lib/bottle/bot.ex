@@ -96,8 +96,10 @@ defmodule Bottle.Bot do
   defp process_options(data, []), do: data
 
   defp process_options(data, [{:to, :random} | opts]) do
+    # FIXME: we need to get the local members because
+    #        Registry is local.
     jid =
-      :pg.get_members(Bottle.Bot)
+      :pg.get_local_members(Bottle.Bot)
       |> case do
         [_] = pids -> pids
         pids -> List.delete(pids, self())
@@ -124,12 +126,25 @@ defmodule Bottle.Bot do
     |> process_options(opts)
   end
 
-  def start_link(%{} = data, bot_type, bot_name \\ nil) when not is_struct(data) do
-    if bot_name do
-      GenServer.start_link(to_module(bot_type), [data], name: bot_name)
-    else
-      GenServer.start_link(to_module(bot_type), [data])
-    end
+  def start_link(data, bot_type, bot_name \\ nil, remote_node \\ nil)
+
+  def start_link(%{} = data, bot_type, nil, nil) when not is_struct(data) do
+    GenServer.start_link(to_module(bot_type), [data])
+  end
+
+  def start_link(%{} = data, bot_type, bot_name, nil) when not is_struct(data) do
+    GenServer.start_link(to_module(bot_type), [data], name: bot_name)
+  end
+
+  def start_link(%{} = data, bot_type, bot_name, remote_node) when not is_struct(data) do
+    parent = self()
+    ref = make_ref()
+    Node.spawn_link(remote_node, fn ->
+      module = to_module(bot_type)
+      result = GenServer.start_link(module, [data], name: bot_name)
+      send(parent, {ref, result})
+    end)
+    receive do {^ref, result} -> result end
   end
 
   def stop(bot_name) when is_pid(bot_name) or is_atom(bot_name) do
@@ -204,6 +219,7 @@ defmodule Bottle.Bot do
         unquote(block)
       end
     end
+    |> tap(&Bottle.Code.register(&1, module, :bot))
   end
 
   defmacro run(actions, opts) do

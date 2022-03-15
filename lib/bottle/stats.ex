@@ -7,6 +7,8 @@ defmodule Bottle.Stats do
   alias Exampple.Router.Conn
   alias Exampple.Xml
 
+  @pname {:global, __MODULE__}
+
   # keeping data for 6 hours
   @default_buckets 6 * 60
 
@@ -38,23 +40,23 @@ defmodule Bottle.Stats do
             buckets: []
 
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: @pname)
   end
 
   def get_stats do
-    GenServer.call(__MODULE__, :get_stats)
+    GenServer.call(@pname, :get_stats)
   end
 
   def get_buckets do
-    GenServer.call(__MODULE__, :get_buckets)
+    GenServer.call(@pname, :get_buckets)
   end
 
   def add_client(client) do
-    GenServer.cast(__MODULE__, {:add_client, client})
+    GenServer.cast(@pname, {:add_client, client, node()})
   end
 
   def notify(event_name, action_module, data) when is_atom(action_module) do
-    GenServer.cast(__MODULE__, {:notify, event_name, action_module, data})
+    GenServer.cast(@pname, {:notify, event_name, action_module, data})
   end
 
   @impl GenServer
@@ -69,8 +71,8 @@ defmodule Bottle.Stats do
     {:noreply, update_stats(state, event_name, data)}
   end
 
-  def handle_cast({:add_client, client}, state) do
-    :ok = Exampple.Client.trace(client, true)
+  def handle_cast({:add_client, client, node}, state) do
+    :ok = Exampple.Client.trace({client, node}, true)
     {:noreply, state}
   end
 
