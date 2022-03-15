@@ -93,9 +93,9 @@ defmodule Bottle do
         Bottle.Template.setup(switches[:"templates-file"] || "templates.exs")
         Bottle.Checks.setup(switches[:"checks-file"] || "checks.exs")
         Bottle.Bot.setup()
-        unless switches[:quiet], do: Bottle.Logger.start_link()
-        Bottle.Code.start_link([])
-        Bottle.Stats.start_link(buckets: switches[:buckets] || (6 * 60))
+        unless switches[:quiet], do: {:ok, _} = Bottle.Logger.start_link()
+        {:ok, _} = Bottle.Code.start_link([])
+        {:ok, _} = Bottle.Stats.start_link(buckets: switches[:buckets] || (6 * 60))
         Code.eval_file(file)
         :ok
 

@@ -21,6 +21,7 @@ defmodule Bottle.Remote do
     checks = Bottle.Checks.Storage.get()
 
     parent = self()
+    mapcode = Bottle.Code.get_all()
     pid =
       Node.spawn_link(remote_node, fn ->
         Application.ensure_all_started(:ssl)
@@ -29,7 +30,7 @@ defmodule Bottle.Remote do
         Exampple.Template.put(templates)
         Bottle.Checks.Storage.init()
         Bottle.Checks.Storage.put(checks)
-        Bottle.Code.compile()
+        Bottle.Code.compile(mapcode)
         send(parent, :sync)
         receive do :ok -> throw(:killed) end
       end)

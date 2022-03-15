@@ -34,7 +34,11 @@ defmodule Bottle.Code do
   end
 
   def compile do
-    for {module, code} <- get_all() do
+    compile(get_all())
+  end
+
+  def compile(mapcode) do
+    for {module, code} <- mapcode do
       {result, _bindings} = Code.eval_quoted(code) |> IO.inspect(label: "compiling #{module}")
       {module, result}
     end
