@@ -10,7 +10,7 @@ defmodule Bottle.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: [
-        main_module: Bottle,
+        main_module: Bottle.Main,
         comment: "Bottle XMPP"
       ]
     ]

@@ -10,7 +10,7 @@ user1 =
 CLI.banner "Login user2"
 
 user2 =
-  config("user2.exs")
+  config(System.get_env("USER2", "user2.exs"))
   |> connect()
   |> login()
 

@@ -4,6 +4,7 @@ defmodule Bottle.Stats do
   """
   use GenServer
 
+  alias Bottle.Stats.Bucket
   alias Exampple.Router.Conn
   alias Exampple.Xml
 
@@ -12,43 +13,37 @@ defmodule Bottle.Stats do
   # keeping data for 6 hours
   @default_buckets 6 * 60
 
-  defstruct connected: 0,
-            connected_delta: 0,
-            action_success: 0,
-            action_success_delta: 0,
-            action_failure: 0,
-            action_failure_delta: 0,
-            disconnected: 0,
-            disconnected_delta: 0,
-            message_sent: 0,
-            message_sent_delta: 0,
-            message_recv: 0,
-            message_recv_delta: 0,
-            iq_sent: 0,
-            iq_sent_delta: 0,
-            iq_recv: 0,
-            iq_recv_delta: 0,
-            presence_sent: 0,
-            presence_sent_delta: 0,
-            presence_recv: 0,
-            presence_recv_delta: 0,
-            total_sent: 0,
-            total_sent_delta: 0,
-            total_recv: 0,
-            total_recv_delta: 0,
+  # every 60 seconds a new bucket is created
+  @default_tick_time 60_000
+
+  defstruct current: [],
+            subscribers: [],
             buckets_num: @default_buckets,
-            buckets: []
+            buckets: [],
+            tick_time: @default_tick_time
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: @pname)
   end
 
-  def get_stats do
-    GenServer.call(@pname, :get_stats)
+  def get_stats(node \\ :global) do
+    GenServer.call(@pname, {:get_stats, node})
   end
 
-  def get_buckets do
-    GenServer.call(@pname, :get_buckets)
+  def get_buckets(node \\ :global) do
+    GenServer.call(@pname, {:get_buckets, node})
+  end
+
+  def subscribe, do: GenServer.cast(@pname, {:subscribe, self()})
+
+  def unsubscribe, do: GenServer.cast(@pname, {:unsubscribe, self()})
+
+  def wait_message(time) do
+    receive do
+      {:bucket, bucket} -> bucket
+    after time ->
+      nil
+    end
   end
 
   def add_client(client) do
@@ -56,114 +51,46 @@ defmodule Bottle.Stats do
   end
 
   def notify(event_name, action_module, data) when is_atom(action_module) do
-    GenServer.cast(@pname, {:notify, event_name, action_module, data})
+    GenServer.cast(@pname, {:notify, self(), event_name, action_module, data})
   end
 
   @impl GenServer
   @spec init(Keyword.t()) :: {:ok, %__MODULE__{}}
   def init(opts) do
-    Process.send_after(self(), :tick, 60_000)
-    {:ok, %__MODULE__{buckets_num: opts[:buckets] || @default_buckets}}
+    tick_time = opts[:tick_time] || @default_tick_time
+    Process.send_after(self(), :tick, tick_time)
+    {:ok, %__MODULE__{
+      buckets_num: opts[:buckets] || @default_buckets,
+      current: %{ :global => Bucket.new(), node() => Bucket.new() },
+      tick_time: tick_time
+    }}
   end
 
   @impl GenServer
-  def handle_cast({:notify, event_name, _action_module, data}, state) do
-    {:noreply, update_stats(state, event_name, data)}
+  def handle_cast({:notify, pid, event_name, _action_module, data}, state) do
+    current = state.current
+    global = Bucket.update(current[:global], event_name, data)
+    local = Bucket.update(current[node(pid)], event_name, data)
+    current = Map.merge(current, %{:global => global, node(pid) => local})
+    {:noreply, %__MODULE__{state | current: current}}
   end
 
   def handle_cast({:add_client, client, node}, state) do
     :ok = Exampple.Client.trace({client, node}, true)
-    {:noreply, state}
+    current = Map.put_new(state.current, node, Bucket.new())
+    {:noreply, %__MODULE__{state | current: current}}
   end
 
-  defp update_stats(state, :action_success, _data) do
-    %__MODULE__{state |
-      action_success: state.action_success + 1,
-      action_success_delta: state.action_success_delta + 1
-    }
+  def handle_cast({:subscribe, pid}, %__MODULE__{subscribers: pids} = state) do
+    {:noreply, %__MODULE__{state | subscribers: [pid | pids]}}
   end
 
-  defp update_stats(state, :action_failure, _data) do
-    %__MODULE__{state |
-      action_failure: state.action_failure + 1,
-      action_failure_delta: state.action_failure_delta + 1
-    }
-  end
-
-  defp update_stats(state, :received, %Conn{stanza_type: "message"}) do
-    %__MODULE__{state |
-      message_recv: state.message_recv + 1,
-      total_recv: state.total_recv + 1,
-      message_recv_delta: state.message_recv_delta + 1,
-      total_recv_delta: state.total_recv_delta + 1
-    }
-  end
-
-  defp update_stats(state, :received, %Conn{stanza_type: "iq"}) do
-    %__MODULE__{state |
-      iq_recv: state.iq_recv + 1,
-      total_recv: state.total_recv + 1,
-      iq_recv_delta: state.iq_recv_delta + 1,
-      total_recv_delta: state.total_recv_delta + 1
-    }
-  end
-
-  defp update_stats(state, :received, %Conn{stanza_type: "presence"}) do
-    %__MODULE__{state |
-      presence_recv: state.presence_recv + 1,
-      total_recv: state.total_recv + 1,
-      presence_recv_delta: state.presence_recv_delta + 1,
-      total_recv_delta: state.total_recv_delta + 1
-    }
-  end
-
-  defp update_stats(state, :sent, %Conn{stanza_type: "message"}) do
-    %__MODULE__{state |
-      message_sent: state.message_sent + 1,
-      total_sent: state.total_sent + 1,
-      message_sent_delta: state.message_sent_delta + 1,
-      total_sent_delta: state.total_sent_delta + 1
-    }
-  end
-
-  defp update_stats(state, :sent, %Conn{stanza_type: "iq"}) do
-    %__MODULE__{state |
-      iq_sent: state.iq_sent + 1,
-      total_sent: state.total_sent + 1,
-      iq_sent_delta: state.iq_sent_delta + 1,
-      total_sent_delta: state.total_sent_delta + 1
-    }
-  end
-
-  defp update_stats(state, :sent, %Conn{stanza_type: "presence"}) do
-    %__MODULE__{state |
-      presence_sent: state.presence_sent + 1,
-      total_sent: state.total_sent + 1,
-      presence_sent_delta: state.presence_sent_delta + 1,
-      total_sent_delta: state.total_sent_delta + 1
-    }
-  end
-
-  defp update_stats(state, :connected, _event_data) do
-    %__MODULE__{state |
-      connected: state.connected + 1,
-      connected_delta: state.connected_delta + 1
-    }
-  end
-
-  defp update_stats(state, :disconnected, _event_data) do
-    %__MODULE__{state |
-      disconnected: state.disconnected + 1,
-      disconnected_delta: state.disconnected_delta + 1
-    }
-  end
-
-  defp update_stats(state, _event_name, _event_data) do
-    state
+  def handle_cast({:unsubscribe, pid}, %__MODULE__{subscribers: pids} = state) do
+    {:noreply, %__MODULE__{state | subscribers: pids -- [pid]}}
   end
 
   @impl GenServer
-  def handle_info({event_name, _pid, data}, state) do
+  def handle_info({event_name, pid, data}, state) do
     conn =
       with conn when is_nil(conn) <- data[:conn],
            packet when packet != nil <- data[:packet],
@@ -175,84 +102,57 @@ defmodule Bottle.Stats do
         other -> other
       end
 
-    {:noreply, update_stats(state, event_name, conn)}
+    current = state.current
+    global = Bucket.update(current[:global], event_name, conn)
+    local = Bucket.update(current[node(pid)], event_name, conn)
+    current = Map.merge(current, %{:global => global, node(pid) => local})
+    {:noreply, %__MODULE__{state | current: current}}
   end
 
   def handle_info(:tick, state) do
     state =
       state
-      |> create_bucket()
+      |> snapshot_bucket()
       |> reset_deltas()
 
-    Process.send_after(self(), :tick, 60_000)
+    Process.send_after(self(), :tick, state.tick_time)
+    send_bucket(state.subscribers, hd(state.buckets))
     {:noreply, state}
   end
 
-  defp get_deltas(state) do
-    %{
-      timestamp: System.os_time(),
-      action_success: state.action_success_delta,
-      action_failure: state.action_failure_delta,
-      connected: state.connected_delta,
-      disconnected: state.disconnected_delta,
-      message_sent: state.message_sent_delta,
-      message_recv: state.message_recv_delta,
-      iq_sent: state.iq_sent_delta,
-      iq_recv: state.iq_recv_delta,
-      presence_sent: state.presence_sent_delta,
-      presence_recv: state.presence_recv_delta,
-      total_sent: state.total_sent_delta,
-      total_recv: state.total_recv_delta
-    }
+  defp send_bucket([], _bucket), do: :ok
+
+  defp send_bucket([pid | pids], bucket) do
+    send(pid, {:bucket, bucket})
+    send_bucket(pids, bucket)
   end
 
-  defp get_global(state) do
-    %{
-      timestamp: System.os_time(),
-      action_success: state.action_success,
-      action_failure: state.action_failure,
-      connected: state.connected,
-      disconnected: state.disconnected,
-      message_sent: state.message_sent,
-      message_recv: state.message_recv,
-      iq_sent: state.iq_sent,
-      iq_recv: state.iq_recv,
-      presence_sent: state.presence_sent,
-      presence_recv: state.presence_recv,
-      total_sent: state.total_sent,
-      total_recv: state.total_recv
-    }
+  defp reset_deltas(%__MODULE__{current: current} = state) do
+    current =
+      for {key, bucket} <- current, into: %{} do
+        {key, Bucket.reset_deltas(bucket)}
+      end
+
+    %__MODULE__{state | current: current}
   end
 
-  defp create_bucket(%__MODULE__{buckets: buckets, buckets_num: buckets_num} = state) do
-    bucket = get_deltas(state)
+  defp snapshot_bucket(%__MODULE__{buckets: buckets, buckets_num: buckets_num} = state) do
+    bucket =
+      for {key, bucket} <- state.current, into: %{} do
+        {key, Bucket.get_deltas(bucket)}
+      end
+
     %__MODULE__{state | buckets: Enum.slice([bucket | buckets], 0..(buckets_num - 1))}
   end
 
-  defp reset_deltas(%__MODULE__{} = state) do
-    %__MODULE__{ state |
-      connected_delta: 0,
-      disconnected_delta: 0,
-      action_success_delta: 0,
-      action_failure_delta: 0,
-      message_sent_delta: 0,
-      message_recv_delta: 0,
-      iq_sent_delta: 0,
-      iq_recv_delta: 0,
-      presence_sent_delta: 0,
-      presence_recv_delta: 0,
-      total_sent_delta: 0,
-      total_recv_delta: 0
-    }
-  end
-
   @impl GenServer
-  def handle_call(:get_buckets, _from, state) do
-    current_bucket = get_deltas(state)
-    {:reply, [current_bucket | state.buckets], state}
+  def handle_call({:get_buckets, node}, _from, state) do
+    current_bucket = Bucket.get_deltas(state.current[node])
+    buckets = Enum.map(state.buckets, & &1[node])
+    {:reply, [current_bucket | buckets], state}
   end
 
-  def handle_call(:get_stats, _from, state) do
-    {:reply, get_global(state), state}
+  def handle_call({:get_stats, node}, _from, state) do
+    {:reply, Bucket.get(state.current[node] || Bucket.new()), state}
   end
 end

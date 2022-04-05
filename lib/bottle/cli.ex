@@ -1,4 +1,11 @@
 defmodule Bottle.CLI do
+  @blue IO.ANSI.blue()
+  @green IO.ANSI.green()
+  @red IO.ANSI.red()
+  @purple IO.ANSI.magenta()
+  @yellow IO.ANSI.yellow()
+  @reset IO.ANSI.reset()
+
   defmacro ifnil(value, do: block) do
     quote do
       value = unquote(value)
@@ -26,11 +33,11 @@ defmodule Bottle.CLI do
       |> Enum.map(&"\n** #{String.pad_trailing(&1, max_line_len)} **")
       |> Enum.join()
 
-    "\n#{IO.ANSI.green()}" <>
+    "\n#{@green}" <>
     String.duplicate("*", max_line_len+6) <>
     lines_str <> "\n" <>
     String.duplicate("*", max_line_len+6) <>
-    "\n#{IO.ANSI.reset()}"
+    "\n#{@reset}"
     |> IO.puts()
   end
 
@@ -132,12 +139,73 @@ defmodule Bottle.CLI do
 
   @spec build_prompt(String.t()) :: String.t()
   def build_prompt(name) do
-    "#{IO.ANSI.yellow()}#{name}#{IO.ANSI.reset()}: "
+    "#{@yellow}#{name}#{@reset}: "
   end
 
   @spec build_prompt(String.t(), Atom.t() | String.t()) :: String.t()
   def build_prompt(name, default) do
-    "#{IO.ANSI.blue()}#{name}#{IO.ANSI.reset()} " <>
-      "[#{IO.ANSI.green()}#{default}#{IO.ANSI.reset()}]> "
+    "#{@blue}#{name}#{@reset} " <>
+      "[#{@green}#{default}#{@reset}]> "
+  end
+
+  def print_stats_header do
+    IO.puts("""
+    +------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    | type | messages | presence |   iqs    |  total   | connectd | disconn. |  act.ok  | act.fail |    KB    |
+    +------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    """ |> String.trim_trailing())
+  end
+
+  def print_stats_node(node) do
+    print_stats_banner(to_string(node))
+  end
+
+  def print_stats_banner(banner) do
+    IO.puts("| " <> String.pad_trailing(banner, 103) <> " |")
+  end
+
+  defp num(stat, color) do
+    stat
+    |> to_string()
+    |> String.pad_leading(8)
+    |> String.replace_prefix("", color)
+    |> String.replace_suffix("", @reset)
+  end
+
+  defp kbytes(stat, color) do
+    (stat / 1024)
+    |> :erlang.float_to_binary(decimals: 2)
+    |> String.split(".")
+    |> then(fn [p1, p2] ->
+      String.pad_leading(p1, 5) <> "." <> String.pad_trailing(p2, 2, "0")
+    end)
+    |> String.replace_prefix("", color)
+    |> String.replace_suffix("", @reset)
+  end
+
+  def print_stats(stats) do
+    data =
+      "| #{@green}sent#{@reset} | " <>
+        num(stats.message_sent, @green) <> " | " <>
+        num(stats.presence_sent, @green) <> " | " <>
+        num(stats.iq_sent, @green) <> " | " <>
+        num(stats.total_sent, @green) <> " | " <>
+        num(stats.connected, @purple) <> " | " <>
+        num(stats.disconnected, @yellow) <> " | " <>
+        num(stats.action_success, @green) <> " | " <>
+        num(stats.action_failure, @red) <> " | " <>
+        kbytes(stats.total_bytes_sent, @green) <> " |\n" <>
+        "| #{@red}recv#{@reset} | " <>
+        num(stats.message_recv, @red) <> " | " <>
+        num(stats.presence_recv, @red) <> " | " <>
+        num(stats.iq_recv, @red) <> " | " <>
+        num(stats.total_recv, @red) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        String.duplicate(" ", 8) <> " | " <>
+        kbytes(stats.total_bytes_recv, @red) <> " |"
+
+    IO.puts(data)
   end
 end
