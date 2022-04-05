@@ -215,6 +215,7 @@ defmodule Bottle.Bot do
       defmodule unquote(module) do
         @moduledoc false
         use Bottle.Bot
+        use Bottle, :bot
 
         unquote(block)
       end

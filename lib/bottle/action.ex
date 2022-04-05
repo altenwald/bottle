@@ -54,6 +54,7 @@ defmodule Bottle.Action do
       defmodule unquote(module) do
         @moduledoc false
         use Task
+        use Bottle, :bot
 
         @doc """
         Start the action as a new process.

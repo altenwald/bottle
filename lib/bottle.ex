@@ -6,6 +6,9 @@ defmodule Bottle do
   The facilities Bottle gives to create scenarios
   """
 
+  @default_update_every 1_000
+  @default_header_every 5
+
   defmacro __using__(:checks) do
     quote do
       alias Exampple.Client
@@ -28,13 +31,15 @@ defmodule Bottle do
 
   defmacro __using__(:bot) do
     quote do
-      import Bottle, only: [config: 1, distrib: 2, distrib: 3]
+      import Bottle, only: [config: 1, distrib: 2, distrib: 3, show_stats: 1]
       import Bottle.Action, except: [run: 2]
       import Bottle.Bot, except: [setup: 0]
       import Bottle.{Client, Config}
       import Exampple.Xml.Xmlel
 
       alias Bottle.CLI
+      alias Exampple.Router.Conn
+      alias Exampple.Xml.Xmlel
       alias Exampple.Xmpp.Stanza
     end
   end
@@ -71,8 +76,9 @@ defmodule Bottle do
     :ok
   end
 
-  def show_stats(time, opts) do
-    header_every = opts[:header_every] || 5
+  def show_stats(opts) do
+    time = opts[:every] || @default_update_every
+    header_every = opts[:header_every] || @default_header_every
     nodes = opts[:nodes] || Node.list([:connected, :this])
     show_stats(time, 0, header_every, nodes)
   end

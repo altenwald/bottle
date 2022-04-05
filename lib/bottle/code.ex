@@ -39,7 +39,7 @@ defmodule Bottle.Code do
 
   def compile(mapcode) do
     for {module, code} <- mapcode do
-      {result, _bindings} = Code.eval_quoted(code) |> IO.inspect(label: "compiling #{module}")
+      {result, _bindings} = Code.eval_quoted(code)
       {module, result}
     end
   end
