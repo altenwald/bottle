@@ -74,39 +74,43 @@ As you can see, the population of the datase save us to indicate custom data aga
 The bots concept is a way to create a new process which is running a whole behaviour in a constant way. The mission is the creation of bots which will be sending messages or creating an interaction between them in an autonomous way configured with templates and checks. An example:
 
 ```elixir
-bot :romeo do
-  set_from_file "romeo.exs"
+use Bottle, :bot
 
-  login()
-  wait_for :julieta
+action :sending do
+  data
+  |> send_template(:chat, ~w[ to_jid body origin_id ])
+  |> check!(:receipt, ~w[ from_jid timeout ])
+end
 
-  run for: :infinity, as: :ordered do
-    step :sending do
-      sending :chat, to: :julieta, body: "Oh! Julieta!"
-      checking :receipt, from: :julieta
-      checking :received, from: :julieta
-      checking :displayed, from: :julieta
-    end
+action :receiving do
+  data
+  |> check!(:chat)
+  |> send_template(:receipt, ~w[ to_jid origin_id ])
+end
 
-    step :receiving do
-      checking :chat, from: :julieta
-      sending :received, to: :julieta
-      sending :displayed, to: :julieta
-    end
-
-    maybe :from_mercutio do
-      checking :chat, from: :mercutio
-      sending :received, to: :mercutio
-    end
-
-    wait 1_000
+bot :chatter do
+  setup do
+    data
+    |> connect()
+    |> login()
   end
 
-  logout()
+  run ~w[ sending ]a, to: :random
+  pool ~w[ receiving ]a, size: 10
 end
+
+config("romeo.exs")
+|> Map.put("body", "Oh! Julieta!")
+|> start_link(:chatter, :romeo_bot)
+
+config("juliet.exs")
+|> Map.put("body", "Oh! Julieta!")
+|> start_link(:chatter, :romeo_bot)
+
+show_stats(every: 1_000, header_every: 4)
 ```
 
-More coming soon.
+The information coming from files (i.e. `romeo.exs`) is based on a map where the key is a string and the value could be whatever. The information should be handled by the checks or templates depending on the function we want to process and the code is provided usually by the `checks.exs` and `templates.exs` respectively.
 
 ## Into the Shell
 
